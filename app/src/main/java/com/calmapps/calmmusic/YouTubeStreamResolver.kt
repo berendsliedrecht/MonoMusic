@@ -83,8 +83,17 @@ class YouTubeStreamResolver(private val client: OkHttpClient = OkHttpClient()) {
             val audioStreams = streamInfo.audioStreams
             if (audioStreams.isEmpty()) error("No audio streams found")
 
-            val candidates = audioStreams.filter { it.averageBitrate > 0 }
-            if (candidates.isEmpty()) error("No audio streams with valid bitrate")
+            val allCandidates = audioStreams.filter { it.averageBitrate > 0 }
+            if (allCandidates.isEmpty()) error("No audio streams with valid bitrate")
+
+            // Downloads are saved as .m4a and tagged with jaudiotagger, so prefer
+            // actual M4A/AAC streams over Opus/WebM when available.
+            val candidates = if (maxBitrateKbps != null) {
+                allCandidates.filter { it.format == org.schabi.newpipe.extractor.MediaFormat.M4A }
+                    .ifEmpty { allCandidates }
+            } else {
+                allCandidates
+            }
 
             val chosen = if (maxBitrateKbps == null) {
                 candidates.maxByOrNull { it.averageBitrate }!!

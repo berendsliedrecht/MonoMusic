@@ -21,7 +21,6 @@ import androidx.compose.material.icons.outlined.RepeatOne
 import androidx.compose.material.icons.outlined.Shuffle
 import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.SkipPrevious
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,7 +37,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
-import com.mudita.mmd.components.buttons.ButtonMMD
 import com.mudita.mmd.components.progress_indicator.CircularProgressIndicatorMMD
 import com.mudita.mmd.components.slider.SliderMMD
 
@@ -220,19 +218,14 @@ fun NowPlayingScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ButtonMMD(
+            IconButton(
                 onClick = onSeekBackwardClick,
                 modifier = Modifier.size(72.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                )
-
             ) {
                 Icon(
                     imageVector = Icons.Outlined.SkipPrevious,
                     modifier = Modifier.size(46.dp),
                     contentDescription = "Previous Song",
-                    tint = MaterialTheme.colorScheme.onSecondary
                 )
             }
 
@@ -254,18 +247,14 @@ fun NowPlayingScreen(
                 }
             }
 
-            ButtonMMD(
+            IconButton(
                 onClick = onSeekForwardClick,
                 modifier = Modifier.size(72.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                )
             ) {
                 Icon(
                     imageVector = Icons.Outlined.SkipNext,
                     modifier = Modifier.size(46.dp),
                     contentDescription = "Next Song",
-                    tint = MaterialTheme.colorScheme.onSecondary
                 )
             }
         }

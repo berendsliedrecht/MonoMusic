@@ -15,7 +15,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mudita.mmd.components.buttons.ButtonMMD
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.text.TextMMD
 
@@ -51,7 +50,7 @@ fun LibraryOnboardingEmptyState(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        ButtonMMD(
+        OutlinedButtonMMD(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(12.dp),
             onClick = onOpenStreamingSettingsClick,

@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calmapps.calmmusic.CalmMusicViewModel
 import com.calmapps.calmmusic.PlaylistsViewModel
-import com.mudita.mmd.components.buttons.ButtonMMD
+import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.buttons.FloatingActionButtonMMD
 import com.mudita.mmd.components.checkbox.CheckboxMMD
 import com.mudita.mmd.components.lazy.LazyColumnMMD
@@ -146,7 +146,7 @@ fun PlaylistDetailsScreen(
                             fontWeight = FontWeight.SemiBold,
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        ButtonMMD(
+                        OutlinedButtonMMD(
                             onClick = onAddSongsClick,
                         ) {
                             TextMMD(text = "Add songs")

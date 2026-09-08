@@ -26,7 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calmapps.calmmusic.data.StreamingProvider
-import com.mudita.mmd.components.buttons.ButtonMMD
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.chips.SuggestionChipMMD
 import com.mudita.mmd.components.divider.HorizontalDividerMMD
@@ -307,7 +306,7 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.height(16.dp))
 
                             if (!isAppleMusicAuthenticated) {
-                                ButtonMMD(
+                                OutlinedButtonMMD(
                                     onClick = onConnectAppleMusicClick
                                 ) {
                                     TextMMD(text = "Connect")
@@ -378,7 +377,7 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            ButtonMMD(
+                            OutlinedButtonMMD(
                                 onClick = onAddFolderClick,
                                 modifier = Modifier.weight(1f),
                             ) {

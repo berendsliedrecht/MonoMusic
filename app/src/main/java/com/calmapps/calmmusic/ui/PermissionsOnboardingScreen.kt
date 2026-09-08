@@ -23,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mudita.mmd.components.buttons.ButtonMMD
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.text.TextMMD
 
@@ -124,7 +123,7 @@ fun PermissionsOnboardingScreen(
                 if (hasOverlayPermission && hasBatteryOptimizationExemption) {
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    ButtonMMD(
+                    OutlinedButtonMMD(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = onContinueClick,
                         contentPadding = PaddingValues(12.dp),

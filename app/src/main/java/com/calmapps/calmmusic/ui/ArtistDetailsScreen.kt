@@ -48,7 +48,7 @@ fun ArtistDetailsScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    val tabOptions = listOf("Songs", "Albums")
+    val tabOptions = listOf("Albums", "Songs")
 
     val playbackState by viewModel.playbackState.collectAsState()
     val currentSongId = playbackState.currentSongId
@@ -66,6 +66,7 @@ fun ArtistDetailsScreen(
             val content = viewModel.getArtistContent(artistId)
             songs = content.songs
             albums = content.albums
+            if (albums.isEmpty() && songs.isNotEmpty()) selectedTab = 1
         } catch (e: Exception) {
             errorMessage = e.message ?: "Failed to load artist"
         } finally {
@@ -126,6 +127,33 @@ fun ArtistDetailsScreen(
                     }
 
                     if (selectedTab == 0) {
+                        // Albums tab
+                        LazyColumnMMD(
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.Top,
+                        ) {
+                            if (albums.isNotEmpty()) {
+                                items(albums) { album ->
+                                    AlbumItem(
+                                        album = album,
+                                        onClick = { onAlbumClick(album) },
+                                        showDivider = album != albums.lastOrNull(),
+                                    )
+                                }
+                            } else {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .height(200.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        TextMMD(text = "No albums for this artist")
+                                    }
+                                }
+                            }
+                        }
+                    } else {
                         // Songs tab
                         LazyColumnMMD(
                             contentPadding = PaddingValues(16.dp),
@@ -149,33 +177,6 @@ fun ArtistDetailsScreen(
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         TextMMD(text = "No songs for this artist")
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // Albums tab
-                        LazyColumnMMD(
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.Top,
-                        ) {
-                            if (albums.isNotEmpty()) {
-                                items(albums) { album ->
-                                    AlbumItem(
-                                        album = album,
-                                        onClick = { onAlbumClick(album) },
-                                        showDivider = album != albums.lastOrNull(),
-                                    )
-                                }
-                            } else {
-                                item {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .height(200.dp),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        TextMMD(text = "No albums for this artist")
                                     }
                                 }
                             }

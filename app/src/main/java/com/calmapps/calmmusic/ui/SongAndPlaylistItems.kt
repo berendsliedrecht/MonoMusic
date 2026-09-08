@@ -48,6 +48,7 @@ fun SongItem(
     onAddToPlaylist: () -> Unit = {},
     onDelete: () -> Unit = {},
     onRemoveFromLibrary: () -> Unit = {},
+    onEdit: (() -> Unit)? = null,
     isDownloaded: Boolean = false,
     showDivider: Boolean = true,
     isInLibrary: Boolean = false,
@@ -204,6 +205,17 @@ fun SongItem(
                                 onAddToPlaylist()
                             }
                         )
+
+                        if (isLocal && onEdit != null) {
+                            DashedDivider(thickness = 1.dp)
+                            DropdownMenuItemMMD(
+                                text = { TextMMD(text = "Edit") },
+                                onClick = {
+                                    showMenu = false
+                                    onEdit()
+                                }
+                            )
+                        }
 
                         if (isDownloaded || isLocal) {
                             DashedDivider(thickness = 1.dp)

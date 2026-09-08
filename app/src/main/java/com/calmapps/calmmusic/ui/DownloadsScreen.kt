@@ -2,6 +2,7 @@ package com.calmapps.calmmusic.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,7 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calmapps.calmmusic.YouTubeDownloadStatus
-import com.mudita.mmd.components.buttons.ButtonMMD
+import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.divider.HorizontalDividerMMD
 import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.text.TextMMD
@@ -32,34 +33,25 @@ fun DownloadsScreen(
     onCancelDownload: (String) -> Unit,
     onClearFinished: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-    ) {
-        if (downloads.isEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                TextMMD(
-                    text = "No recent downloads",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    if (downloads.isEmpty()) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            TextMMD(
+                text = "No recent downloads",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    } else {
+        LazyColumnMMD(contentPadding = PaddingValues(16.dp)) {
+            items(downloads.size) { index ->
+                val status = downloads[index]
+                DownloadItem(
+                    status = status,
+                    onCancel = { onCancelDownload(status.id) },
                 )
-            }
-        } else {
-            LazyColumnMMD(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                items(downloads.size) { index ->
-                    val status = downloads[index]
-                    DownloadItem(
-                        status = status,
-                        onCancel = { onCancelDownload(status.id) },
-                    )
-                }
             }
         }
     }
@@ -70,7 +62,11 @@ private fun DownloadItem(
     status: YouTubeDownloadStatus,
     onCancel: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -124,6 +120,9 @@ private fun DownloadItem(
             }
             YouTubeDownloadStatus.State.CANCELED -> {
                 TextMMD(text = "Canceled", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            YouTubeDownloadStatus.State.SKIPPED -> {
+                TextMMD(text = "Already downloaded", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 

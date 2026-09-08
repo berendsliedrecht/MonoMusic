@@ -15,6 +15,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -102,9 +104,9 @@ import com.calmapps.calmmusic.ui.SongUiModel
 import com.calmapps.calmmusic.ui.SongsScreen
 import com.mudita.mmd.ThemeMMD
 import com.mudita.mmd.components.bottom_sheet.ModalBottomSheetMMD
+import com.mudita.mmd.components.text_field.TextFieldMMD
 import com.mudita.mmd.components.bottom_sheet.SheetStateMMD
 import com.mudita.mmd.components.bottom_sheet.rememberModalBottomSheetMMDState
-import com.mudita.mmd.components.buttons.ButtonMMD
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.divider.HorizontalDividerMMD
 import com.mudita.mmd.components.lazy.LazyColumnMMD
@@ -284,6 +286,12 @@ fun CalmMusic(app: CalmMusic) {
     val deletePlaylistsSheetState: SheetStateMMD = rememberModalBottomSheetMMDState(
         skipPartiallyExpanded = true,
     )
+    val renameAlbumSheetState: SheetStateMMD = rememberModalBottomSheetMMDState(
+        skipPartiallyExpanded = true,
+    )
+    val editSongSheetState: SheetStateMMD = rememberModalBottomSheetMMDState(
+        skipPartiallyExpanded = true,
+    )
 
     val canNavigateBack = navController.previousBackStackEntry != null
     val streamingProviderState = settingsManager.streamingProvider.collectAsState()
@@ -315,6 +323,12 @@ fun CalmMusic(app: CalmMusic) {
     var albumsError by remember { mutableStateOf<String?>(null) }
 
     var selectedAlbum by remember { mutableStateOf<AlbumUiModel?>(null) }
+    var showRenameAlbumDialog by remember { mutableStateOf(false) }
+    var renameAlbumText by remember { mutableStateOf("") }
+    var renameAlbumArtistText by remember { mutableStateOf("") }
+    var songToEdit by remember { mutableStateOf<SongUiModel?>(null) }
+    var editSongTitle by remember { mutableStateOf("") }
+    var editSongArtist by remember { mutableStateOf("") }
 
     var selectedPlaylist by remember { mutableStateOf<PlaylistUiModel?>(null) }
     var playlistAddSongsSelectionIds by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -997,6 +1011,10 @@ fun CalmMusic(app: CalmMusic) {
                         playlistEditSelectionCount = playlistEditSelectionCount,
                         playlistDetailsSelectionCount = playlistDetailsSelectionCount,
                         isPlaylistDetailsMenuExpanded = isPlaylistDetailsMenuExpanded,
+                        canDownloadSelectedAlbum = streamingProvider == StreamingProvider.YOUTUBE &&
+                                selectedAlbum?.sourceType == "YOUTUBE",
+                        canRenameSelectedAlbum = selectedAlbum?.sourceType == "LOCAL_FILE" ||
+                                selectedAlbum?.sourceType == "YOUTUBE_DOWNLOAD",
                         hasNowPlaying = nowPlayingSong != null,
                         onBackClick = { navController.navigateUp() },
                         onCancelPlaylistsEditClick = {
@@ -1046,6 +1064,50 @@ fun CalmMusic(app: CalmMusic) {
                                 playlistEditSelectionIds.add(playlist.id)
                                 playlistEditSelectionCount = 1
                                 showDeletePlaylistsConfirmation = true
+                            }
+                        },
+                        onAlbumDownloadClick = {
+                            val album = selectedAlbum
+                            if (album != null) {
+                                libraryScope.launch {
+                                    val songs = try {
+                                        viewModel.getAlbumSongsForDetails(album)
+                                    } catch (_: Exception) {
+                                        emptyList()
+                                    }
+                                    val activeIds = downloadStatuses
+                                        .filter { it.state == YouTubeDownloadStatus.State.PENDING || it.state == YouTubeDownloadStatus.State.IN_PROGRESS }
+                                        .map { it.songId }
+                                        .toSet()
+                                    val toDownload = app.youTubeDownloadManager.filterNotDownloaded(
+                                        songs.filter { it.sourceType == "YOUTUBE" && it.id !in activeIds },
+                                    )
+
+                                    if (toDownload.isEmpty()) {
+                                        snackbarHostState.showSnackbar(
+                                            message = "Nothing to download",
+                                            withDismissAction = false,
+                                            duration = SnackbarDurationMMD.Short,
+                                        )
+                                    } else {
+                                        toDownload.forEach { song ->
+                                            app.youTubeDownloadManager.enqueueDownload(song, album.artist)
+                                        }
+                                        snackbarHostState.showSnackbar(
+                                            message = if (toDownload.size == 1) "Downloading 1 song" else "Downloading ${toDownload.size} songs",
+                                            withDismissAction = false,
+                                            duration = SnackbarDurationMMD.Short,
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        onAlbumRenameClick = {
+                            val album = selectedAlbum
+                            if (album != null) {
+                                renameAlbumText = album.title
+                                renameAlbumArtistText = album.artist.orEmpty()
+                                showRenameAlbumDialog = true
                             }
                         },
                         onShowDeletePlaylistSongsConfirmationClick = {
@@ -1129,6 +1191,11 @@ fun CalmMusic(app: CalmMusic) {
                 navController = navController,
                 startDestination = Screen.Songs.route,
                 modifier = Modifier.padding(paddingValues),
+                // E-ink: screen transition animations cause slow, ghosting refreshes.
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None },
             ) {
                 playlistsNavGraph()
 
@@ -1169,6 +1236,11 @@ fun CalmMusic(app: CalmMusic) {
                         onAddToPlaylistClick = onAddToPlaylist,
                         onRemoveFromLibraryClick = onRemoveFromLibrary,
                         onDeleteClick = onDelete,
+                        onEditClick = { song ->
+                            editSongTitle = song.title
+                            editSongArtist = song.artist
+                            songToEdit = song
+                        },
                         onOpenStreamingSettingsClick = openStreamingSettings,
                         onOpenLocalSettingsClick = openLocalSettings,
                     )
@@ -1247,6 +1319,11 @@ fun CalmMusic(app: CalmMusic) {
                         },
                         onShuffleClick = { songs ->
                             startShuffledPlaybackFromQueue(songs)
+                        },
+                        onEditSongClick = { song ->
+                            editSongTitle = song.title
+                            editSongArtist = song.artist
+                            songToEdit = song
                         },
                         librarySongIds = librarySongIds,
                     )
@@ -1613,7 +1690,7 @@ fun CalmMusic(app: CalmMusic) {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    ButtonMMD(
+                    OutlinedButtonMMD(
                         onClick = {
                             pendingAddToNewPlaylistSong = song
                             showAddToPlaylistDialog = false
@@ -1628,6 +1705,198 @@ fun CalmMusic(app: CalmMusic) {
                     ) {
                         TextMMD(
                             text = "New playlist",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+
+        if (showRenameAlbumDialog && selectedAlbum != null) {
+            val album = selectedAlbum!!
+
+            ModalBottomSheetMMD(
+                onDismissRequest = { showRenameAlbumDialog = false },
+                sheetState = renameAlbumSheetState,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        TextMMD(
+                            text = "Edit Album",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+
+                        IconButton(
+                            onClick = { showRenameAlbumDialog = false },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "Cancel rename"
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    TextFieldMMD(
+                        value = renameAlbumText,
+                        onValueChange = { renameAlbumText = it },
+                        label = { TextMMD("Album name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    TextFieldMMD(
+                        value = renameAlbumArtistText,
+                        onValueChange = { renameAlbumArtistText = it },
+                        label = { TextMMD("Album artist") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedButtonMMD(
+                        onClick = {
+                            val newTitle = renameAlbumText.trim()
+                            val newArtist = renameAlbumArtistText.trim()
+                            showRenameAlbumDialog = false
+                            libraryScope.launch {
+                                val updatedAlbum = try {
+                                    viewModel.renameAlbum(album, newTitle, newArtist)
+                                } catch (_: Exception) {
+                                    null
+                                }
+                                if (updatedAlbum != null) {
+                                    selectedAlbum = updatedAlbum
+                                    snackbarHostState.showSnackbar(
+                                        message = "Album updated",
+                                        withDismissAction = false,
+                                        duration = SnackbarDurationMMD.Short,
+                                    )
+                                } else {
+                                    snackbarHostState.showSnackbar(
+                                        message = "Couldn't rename album",
+                                        withDismissAction = false,
+                                        duration = SnackbarDurationMMD.Short,
+                                    )
+                                }
+                            }
+                        },
+                        enabled = renameAlbumText.isNotBlank() && renameAlbumArtistText.isNotBlank() &&
+                                (renameAlbumText.trim() != album.title || renameAlbumArtistText.trim() != album.artist.orEmpty()),
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(12.dp)
+                    ) {
+                        TextMMD(
+                            text = "Save",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+
+        if (songToEdit != null) {
+            val song = songToEdit!!
+
+            ModalBottomSheetMMD(
+                onDismissRequest = { songToEdit = null },
+                sheetState = editSongSheetState,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        TextMMD(
+                            text = "Edit Song",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+
+                        IconButton(
+                            onClick = { songToEdit = null },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "Cancel edit"
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    TextFieldMMD(
+                        value = editSongTitle,
+                        onValueChange = { editSongTitle = it },
+                        label = { TextMMD("Title") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    TextFieldMMD(
+                        value = editSongArtist,
+                        onValueChange = { editSongArtist = it },
+                        label = { TextMMD("Artist") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedButtonMMD(
+                        onClick = {
+                            val newTitle = editSongTitle.trim()
+                            val newArtist = editSongArtist.trim()
+                            songToEdit = null
+                            libraryScope.launch {
+                                try {
+                                    viewModel.updateSongMetadata(song.id, newTitle, newArtist)
+                                    snackbarHostState.showSnackbar(
+                                        message = "Song updated",
+                                        withDismissAction = false,
+                                        duration = SnackbarDurationMMD.Short,
+                                    )
+                                } catch (_: Exception) {
+                                    snackbarHostState.showSnackbar(
+                                        message = "Couldn't update song",
+                                        withDismissAction = false,
+                                        duration = SnackbarDurationMMD.Short,
+                                    )
+                                }
+                            }
+                        },
+                        enabled = editSongTitle.isNotBlank() && editSongArtist.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(12.dp)
+                    ) {
+                        TextMMD(
+                            text = "Save",
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                         )
@@ -1690,7 +1959,7 @@ fun CalmMusic(app: CalmMusic) {
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        ButtonMMD(
+                        OutlinedButtonMMD(
                             onClick = {
                                 playlistScope.launch {
                                     var snackbarMessage: String?
@@ -1807,7 +2076,7 @@ fun CalmMusic(app: CalmMusic) {
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        ButtonMMD(
+                        OutlinedButtonMMD(
                             onClick = {
                                 playlistScope.launch {
                                     val currentPlaylistsById = libraryPlaylists.associateBy { it.id }
@@ -1904,7 +2173,7 @@ fun ExternalMediaWidget(state: ExternalMediaState) {
     val context = LocalContext.current
     if (!isNotificationServiceEnabled(context)) {
         Box(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
-            ButtonMMD(
+            OutlinedButtonMMD(
                 onClick = {
                     val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

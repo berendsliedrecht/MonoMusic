@@ -23,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mudita.mmd.components.buttons.ButtonMMD
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.text.TextMMD
 
@@ -64,7 +63,7 @@ fun PlaylistEditScreen(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            ButtonMMD(
+            OutlinedButtonMMD(
                 onClick = { onConfirm(name.trim()) },
                 enabled = name.isNotBlank(),
                 modifier = Modifier.weight(1f),

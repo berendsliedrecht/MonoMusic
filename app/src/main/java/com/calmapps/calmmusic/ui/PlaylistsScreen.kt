@@ -20,7 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mudita.mmd.components.buttons.ButtonMMD
+import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.buttons.FloatingActionButtonMMD
 import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.text.TextMMD
@@ -68,7 +68,7 @@ fun PlaylistsScreen(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    ButtonMMD(
+                    OutlinedButtonMMD(
                         onClick = onAddPlaylistClick,
                     ) {
                         TextMMD(text = "Add playlist")

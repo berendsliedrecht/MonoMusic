@@ -31,7 +31,6 @@ import com.calmapps.calmmusic.ExternalMediaState
 import com.calmapps.calmmusic.CalmMusicAccessibilityService
 import com.mudita.mmd.components.bottom_sheet.ModalBottomSheetMMD
 import com.mudita.mmd.components.bottom_sheet.rememberModalBottomSheetMMDState
-import com.mudita.mmd.components.buttons.ButtonMMD
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.text.TextMMD
 import kotlinx.coroutines.delay
@@ -164,7 +163,7 @@ fun PermissionSheetContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        ButtonMMD(
+        OutlinedButtonMMD(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(12.dp),
             onClick = onConfirm

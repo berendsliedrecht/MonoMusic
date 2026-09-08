@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Search
@@ -26,7 +27,6 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import com.calmapps.calmmusic.ui.AlbumUiModel
 import com.calmapps.calmmusic.ui.PlaylistUiModel
-import com.mudita.mmd.components.buttons.ButtonMMD
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.nav_bar.NavigationBarItemMMD
 import com.mudita.mmd.components.nav_bar.NavigationBarMMD
@@ -56,6 +56,8 @@ fun CalmMusicTopAppBar(
     playlistEditSelectionCount: Int,
     playlistDetailsSelectionCount: Int,
     isPlaylistDetailsMenuExpanded: Boolean,
+    canDownloadSelectedAlbum: Boolean,
+    canRenameSelectedAlbum: Boolean,
     hasNowPlaying: Boolean,
     onBackClick: () -> Unit,
     onCancelPlaylistsEditClick: () -> Unit,
@@ -67,6 +69,8 @@ fun CalmMusicTopAppBar(
     onPlaylistDetailsAddSongsClick: () -> Unit,
     onPlaylistDetailsRenameClick: () -> Unit,
     onPlaylistDetailsDeleteClick: () -> Unit,
+    onAlbumDownloadClick: () -> Unit,
+    onAlbumRenameClick: () -> Unit,
     onShowDeletePlaylistSongsConfirmationClick: () -> Unit,
     onShowDeletePlaylistsConfirmationClick: () -> Unit,
     onPlaylistAddSongsDoneClick: () -> Unit,
@@ -198,6 +202,8 @@ fun CalmMusicTopAppBar(
                 playlistDetailsSelectionCount = playlistDetailsSelectionCount,
                 isPlaylistDetailsEditMode = isPlaylistDetailsEditMode,
                 isPlaylistDetailsMenuExpanded = isPlaylistDetailsMenuExpanded,
+                canDownloadSelectedAlbum = canDownloadSelectedAlbum,
+                canRenameSelectedAlbum = canRenameSelectedAlbum,
                 hasLibraryPlaylists = selectedPlaylist != null,
                 hasNowPlaying = hasNowPlaying,
                 onEnterPlaylistsEditClick = onEnterPlaylistsEditClick,
@@ -207,6 +213,8 @@ fun CalmMusicTopAppBar(
                 onPlaylistDetailsAddSongsClick = onPlaylistDetailsAddSongsClick,
                 onPlaylistDetailsRenameClick = onPlaylistDetailsRenameClick,
                 onPlaylistDetailsDeleteClick = onPlaylistDetailsDeleteClick,
+                onAlbumDownloadClick = onAlbumDownloadClick,
+                onAlbumRenameClick = onAlbumRenameClick,
                 onShowDeletePlaylistSongsConfirmationClick = onShowDeletePlaylistSongsConfirmationClick,
                 onShowDeletePlaylistsConfirmationClick = onShowDeletePlaylistsConfirmationClick,
                 onPlaylistAddSongsDoneClick = onPlaylistAddSongsDoneClick,
@@ -226,6 +234,8 @@ private fun CalmMusicTopAppBarActions(
     playlistDetailsSelectionCount: Int,
     isPlaylistDetailsEditMode: Boolean,
     isPlaylistDetailsMenuExpanded: Boolean,
+    canDownloadSelectedAlbum: Boolean,
+    canRenameSelectedAlbum: Boolean,
     hasLibraryPlaylists: Boolean,
     hasNowPlaying: Boolean,
     onEnterPlaylistsEditClick: () -> Unit,
@@ -235,6 +245,8 @@ private fun CalmMusicTopAppBarActions(
     onPlaylistDetailsAddSongsClick: () -> Unit,
     onPlaylistDetailsRenameClick: () -> Unit,
     onPlaylistDetailsDeleteClick: () -> Unit,
+    onAlbumDownloadClick: () -> Unit,
+    onAlbumRenameClick: () -> Unit,
     onShowDeletePlaylistSongsConfirmationClick: () -> Unit,
     onShowDeletePlaylistsConfirmationClick: () -> Unit,
     onPlaylistAddSongsDoneClick: () -> Unit,
@@ -302,6 +314,24 @@ private fun CalmMusicTopAppBarActions(
         }
     }
 
+    if (currentDestination?.route == Screen.AlbumDetails.route) {
+        if (canDownloadSelectedAlbum) {
+            IconButton(onClick = onAlbumDownloadClick) {
+                Icon(
+                    imageVector = Icons.Outlined.Download,
+                    contentDescription = "Download album",
+                )
+            }
+        } else if (canRenameSelectedAlbum) {
+            IconButton(onClick = onAlbumRenameClick) {
+                Icon(
+                    imageVector = Icons.Outlined.Edit,
+                    contentDescription = "Rename album",
+                )
+            }
+        }
+    }
+
     if (
         currentDestination?.route == Screen.Playlists.route &&
         isPlaylistsEditMode &&
@@ -322,7 +352,7 @@ private fun CalmMusicTopAppBarActions(
     }
 
     if (currentDestination?.route == Screen.PlaylistAddSongs.route) {
-        ButtonMMD(
+        OutlinedButtonMMD(
             contentPadding = PaddingValues(8.dp),
             modifier = Modifier.padding(horizontal = 8.dp),
             onClick = onPlaylistAddSongsDoneClick,
@@ -343,7 +373,7 @@ private fun CalmMusicTopAppBarActions(
         !(currentDestination?.route == Screen.Playlists.route && isPlaylistsEditMode) &&
         !(currentDestination?.route == Screen.PlaylistDetails.route && isPlaylistDetailsEditMode)
     ) {
-        ButtonMMD(
+        OutlinedButtonMMD(
             onClick = onNowPlayingClick,
             contentPadding = PaddingValues(8.dp),
             modifier = Modifier.padding(horizontal = 8.dp),

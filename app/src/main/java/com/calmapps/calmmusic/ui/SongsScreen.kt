@@ -42,6 +42,7 @@ fun SongsScreen(
     onAddToPlaylistClick: (SongUiModel) -> Unit,
     onRemoveFromLibraryClick: (SongUiModel) -> Unit,
     onDeleteClick: (SongUiModel) -> Unit,
+    onEditClick: (SongUiModel) -> Unit,
     onOpenStreamingSettingsClick: () -> Unit,
     onOpenLocalSettingsClick: () -> Unit,
 ) {
@@ -107,6 +108,7 @@ fun SongsScreen(
                             onAddToPlaylist = { onAddToPlaylistClick(song) },
                             onRemoveFromLibrary = { onRemoveFromLibraryClick(song) },
                             onDelete = { onDeleteClick(song) },
+                            onEdit = { onEditClick(song) },
                             isDownloaded = false,
                             isInLibrary = true,
                             showDivider = !isLast,

@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -39,7 +41,7 @@ data class YouTubeDownloadStatus(
     val state: State,
     val errorMessage: String? = null,
 ) {
-    enum class State { PENDING, IN_PROGRESS, COMPLETED, FAILED, CANCELED }
+    enum class State { PENDING, IN_PROGRESS, COMPLETED, FAILED, CANCELED, SKIPPED }
 }
 
 class YouTubeDownloadManager(
@@ -52,6 +54,9 @@ class YouTubeDownloadManager(
     val downloads: StateFlow<List<YouTubeDownloadStatus>> = _downloads.asStateFlow()
 
     private val jobsById = mutableMapOf<String, Job>()
+
+    // Caps parallel downloads so bulk (album) enqueues stay queued as PENDING.
+    private val downloadSemaphore = Semaphore(3)
 
     fun enqueueDownload(song: com.calmapps.calmmusic.ui.SongUiModel, albumArtist: String? = null) {
         val id = UUID.randomUUID().toString()
@@ -76,21 +81,32 @@ class YouTubeDownloadManager(
 
             if (!musicDir.exists()) musicDir.mkdirs()
 
-            updateDownload(id) { it.copy(state = YouTubeDownloadStatus.State.IN_PROGRESS) }
+            val alreadyDownloaded = try {
+                findExistingLocalCopy(song) != null
+            } catch (_: Exception) {
+                false
+            }
+            if (alreadyDownloaded) {
+                updateDownload(id) { it.copy(state = YouTubeDownloadStatus.State.SKIPPED, progress = 1f) }
+                return@launch
+            }
 
             var errorMessage: String? = null
             val ok = try {
-                performYouTubeDownloadInternal(
-                    app = app,
-                    song = song,
-                    albumArtist = albumArtist,
-                    targetDir = musicDir,
-                    context = context,
-                    client = client,
-                    onProgress = { progress ->
-                        updateDownload(id) { status -> status.copy(progress = progress.coerceIn(0f, 1f)) }
-                    },
-                )
+                downloadSemaphore.withPermit {
+                    updateDownload(id) { it.copy(state = YouTubeDownloadStatus.State.IN_PROGRESS) }
+                    performYouTubeDownloadInternal(
+                        app = app,
+                        song = song,
+                        albumArtist = albumArtist,
+                        targetDir = musicDir,
+                        context = context,
+                        client = client,
+                        onProgress = { progress ->
+                            updateDownload(id) { status -> status.copy(progress = progress.coerceIn(0f, 1f)) }
+                        },
+                    )
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 errorMessage = e.message ?: e.javaClass.simpleName ?: "Unknown error"
@@ -119,7 +135,44 @@ class YouTubeDownloadManager(
         _downloads.value = _downloads.value.filterNot { status ->
             status.state == YouTubeDownloadStatus.State.COMPLETED ||
                     status.state == YouTubeDownloadStatus.State.FAILED ||
-                    status.state == YouTubeDownloadStatus.State.CANCELED
+                    status.state == YouTubeDownloadStatus.State.CANCELED ||
+                    status.state == YouTubeDownloadStatus.State.SKIPPED
+        }
+    }
+
+    /** Songs that do not already have a matching local/downloaded copy. */
+    suspend fun filterNotDownloaded(songs: List<com.calmapps.calmmusic.ui.SongUiModel>): List<com.calmapps.calmmusic.ui.SongUiModel> =
+        songs.filter { song ->
+            try {
+                findExistingLocalCopy(song) == null
+            } catch (_: Exception) {
+                true
+            }
+        }
+
+    private suspend fun findExistingLocalCopy(song: com.calmapps.calmmusic.ui.SongUiModel): SongEntity? {
+        fun normalize(s: String) = s.lowercase().replace(Regex("[^a-z0-9]"), "")
+
+        val title = normalize(song.title)
+        if (title.isEmpty()) return null
+
+        val songDao = CalmMusicDatabase.getDatabase(app).songDao()
+        val locals = withContext(Dispatchers.IO) {
+            songDao.getSongsBySourceType("YOUTUBE_DOWNLOAD") + songDao.getSongsBySourceType("LOCAL_FILE")
+        }
+
+        return locals.firstOrNull { local ->
+            if (normalize(local.title) != title) return@firstOrNull false
+
+            val localArtist = normalize(local.artist)
+            val remoteArtist = normalize(song.artist)
+            val artistMatches = localArtist.isEmpty() || remoteArtist.isEmpty() ||
+                    localArtist.contains(remoteArtist) || remoteArtist.contains(localArtist)
+
+            val durationMatches = local.durationMillis == null || song.durationMillis == null ||
+                    kotlin.math.abs(local.durationMillis - song.durationMillis) < 2500L
+
+            artistMatches && durationMatches
         }
     }
 
@@ -163,7 +216,11 @@ internal suspend fun performYouTubeDownloadInternal(
 
         val safeTitle = (song.title.ifBlank { videoId })
             .replace(Regex("""[\\\\/:*?\"<>|]"""), "_")
-        val fileName = "$safeTitle.m4a"
+        // Include the artist so same-titled tracks (e.g. two versions of one song)
+        // don't overwrite each other's files.
+        val safeArtist = song.artist.takeIf { it.isNotBlank() }
+            ?.replace(Regex("""[\\\\/:*?\"<>|]"""), "_")
+        val fileName = if (safeArtist != null) "$safeTitle - $safeArtist.m4a" else "$safeTitle.m4a"
         val targetFile = File(targetDir, fileName)
 
         if (targetFile.exists()) {
@@ -349,7 +406,12 @@ internal suspend fun performYouTubeDownloadInternal(
                 val effectiveAlbumArtist = albumArtist?.takeIf { it.isNotBlank() } ?: song.artist
                 val albumArtistKey = effectiveAlbumArtist.toIdComponent()
 
-                val artistId = "YOUTUBE_DOWNLOAD:$trackArtistKey"
+                // Group under the album artist when the song belongs to an album.
+                val artistId = if (albumKey != null) {
+                    "YOUTUBE_DOWNLOAD:$albumArtistKey"
+                } else {
+                    "YOUTUBE_DOWNLOAD:$trackArtistKey"
+                }
 
                 val albumId = if (albumKey != null) {
                     "YOUTUBE_DOWNLOAD:$albumArtistKey:$albumKey"
@@ -364,7 +426,7 @@ internal suspend fun performYouTubeDownloadInternal(
                 if (artistId.isNotBlank()) {
                     artistDao.upsertAll(listOf(ArtistEntity(
                         id = artistId,
-                        name = song.artist,
+                        name = if (albumKey != null) effectiveAlbumArtist else song.artist,
                         sourceType = "YOUTUBE_DOWNLOAD"
                     )))
                 }

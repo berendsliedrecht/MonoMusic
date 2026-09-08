@@ -88,33 +88,35 @@ class LibraryRepository(
 
                         onIngestProgress(0f)
 
-                        val normalizedLocalEntities = scannedAudio.map { it.song }
+                        fun String.normalize() = trim().replace(Regex("\\s+"), " ").lowercase()
+
+                        // Group under the Album Artist tag when present, falling back to the
+                        // track artist, so featured/guest artists don't clutter the Artists tab.
+                        val artistEntities = mutableListOf<ArtistEntity>()
+                        val normalizedLocalEntities = scannedAudio.map { wrapper ->
+                            val entity = wrapper.song
+                            val albumArtistName = (wrapper.albumArtist?.takeIf { it.isNotBlank() }
+                                ?: entity.albumId?.let { existingAlbumsMap[it]?.artist })
+                                ?.takeIf { it.isNotBlank() }
+
+                            val result = if (albumArtistName != null) {
+                                entity.copy(artistId = "LOCAL_FILE:" + albumArtistName.normalize())
+                            } else {
+                                entity
+                            }
+
+                            val artistName = albumArtistName
+                                ?: entity.artist.takeIf { it.isNotBlank() }
+                                ?: result.artistId?.removePrefix("LOCAL_FILE:")
+                            val id = result.artistId
+                            if (id != null && artistName != null) {
+                                artistEntities.add(ArtistEntity(id, artistName, entity.sourceType))
+                            }
+
+                            result
+                        }
 
                         withContext(Dispatchers.IO) {
-                            val artistEntities = mutableListOf<ArtistEntity>()
-
-                            fun String.normalize() = trim().replace(Regex("\\s+"), " ").lowercase()
-
-                            normalizedLocalEntities.forEach { entity ->
-                                val id = entity.artistId ?: return@forEach
-                                val name = entity.artist.takeIf { it.isNotBlank() } ?: id.removePrefix("LOCAL_FILE:")
-                                artistEntities.add(ArtistEntity(id, name, entity.sourceType))
-                            }
-
-                            scannedAudio.forEach { wrapper ->
-                                val entity = wrapper.song
-                                val explicit = wrapper.albumArtist
-
-                                // If explicit is missing (unchanged file), check our preserved map
-                                val effectiveAlbumArtist = explicit?.takeIf { it.isNotBlank() }
-                                    ?: entity.albumId?.let { existingAlbumsMap[it]?.artist }
-
-                                if (!effectiveAlbumArtist.isNullOrBlank()) {
-                                    val id = "LOCAL_FILE:" + effectiveAlbumArtist.normalize()
-                                    artistEntities.add(ArtistEntity(id, effectiveAlbumArtist, wrapper.song.sourceType))
-                                }
-                            }
-
                             val uniqueArtists = artistEntities.distinctBy { it.id }
 
                             onIngestProgress(0.1f)

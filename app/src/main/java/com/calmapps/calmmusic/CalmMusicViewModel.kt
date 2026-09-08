@@ -245,6 +245,135 @@ class CalmMusicViewModel(
         return mergedList
     }
 
+    private fun String.toIdComponent(): String =
+        trim().replace(Regex("\\s+"), " ").lowercase()
+
+    private fun writeTags(entity: SongEntity, apply: (org.jaudiotagger.tag.Tag) -> Unit) {
+        val file = try {
+            val uri = Uri.parse(entity.audioUri)
+            if (uri.scheme == "file") uri.path?.let { java.io.File(it) } else null
+        } catch (_: Exception) {
+            null
+        } ?: return
+
+        if (!file.exists() || !file.canWrite()) return
+
+        try {
+            org.jaudiotagger.tag.TagOptionSingleton.getInstance().isAndroid = true
+            val audioFile = org.jaudiotagger.audio.AudioFileIO.read(file)
+            apply(audioFile.tagAndConvertOrCreateAndSetDefault)
+            audioFile.commit()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Renames a local/downloaded album and/or its album artist: rewrites file tags,
+     * updates song rows to the new albumId and replaces the album entities. Returns
+     * the updated album model, or null when the album has no local songs to rename.
+     */
+    suspend fun renameAlbum(album: AlbumUiModel, newTitle: String, newArtist: String? = null): AlbumUiModel? {
+        return withContext(Dispatchers.IO) {
+            val suffix = album.id.substringAfter(":", missingDelimiterValue = "")
+            val idsToFetch = mutableSetOf(album.id)
+            if (suffix.isNotEmpty()) {
+                idsToFetch.add("LOCAL_FILE:$suffix")
+                idsToFetch.add("YOUTUBE_DOWNLOAD:$suffix")
+            }
+
+            val songs = idsToFetch.flatMap { songDao.getSongsByAlbumId(it) }
+                .distinctBy { it.id }
+                .filter { it.sourceType == "LOCAL_FILE" || it.sourceType == "YOUTUBE_DOWNLOAD" }
+            if (songs.isEmpty()) return@withContext null
+
+            val albumArtistName = newArtist?.takeIf { it.isNotBlank() }
+                ?: album.artist?.takeIf { it.isNotBlank() }
+                ?: songs.first().artist
+            val albumArtistKey = albumArtistName.toIdComponent()
+            val newKey = newTitle.toIdComponent()
+
+            val oldAlbumIds = songs.mapNotNull { it.albumId }.distinct()
+            val oldArtistIds = songs.mapNotNull { it.artistId }.distinct()
+
+            val updated = songs.map { entity ->
+                writeTags(entity) { tag ->
+                    tag.setField(org.jaudiotagger.tag.FieldKey.ALBUM, newTitle)
+                    tag.setField(org.jaudiotagger.tag.FieldKey.ALBUM_ARTIST, albumArtistName)
+                }
+                entity.copy(
+                    album = newTitle,
+                    albumId = "${entity.sourceType}:$albumArtistKey:$newKey",
+                    artistId = "${entity.sourceType}:$albumArtistKey",
+                )
+            }
+            songDao.upsertAll(updated)
+
+            val newAlbumIds = updated.mapNotNull { it.albumId }.distinct()
+            updated.map { it.sourceType }.distinct().forEach { sourceType ->
+                val artistId = "$sourceType:$albumArtistKey"
+                artistDao.upsertAll(listOf(ArtistEntity(artistId, albumArtistName, sourceType)))
+                albumDao.upsertAll(listOf(AlbumEntity(
+                    id = "$sourceType:$albumArtistKey:$newKey",
+                    name = newTitle,
+                    artist = albumArtistName,
+                    sourceType = sourceType,
+                    artistId = artistId,
+                )))
+            }
+            albumDao.deleteByIds(oldAlbumIds - newAlbumIds.toSet())
+
+            val keptArtistIds = updated.mapNotNull { it.artistId }.toSet()
+            (oldArtistIds - keptArtistIds).forEach { oldId ->
+                if (songDao.countSongsByArtistId(oldId) == 0 && albumDao.countAlbumsByArtistId(oldId) == 0) {
+                    artistDao.deleteById(oldId)
+                }
+            }
+
+            refreshLibraryFromDatabase()
+
+            val newId = newAlbumIds.firstOrNull { it.startsWith("${album.sourceType}:") }
+                ?: newAlbumIds.first()
+            album.copy(id = newId, title = newTitle, artist = albumArtistName)
+        }
+    }
+
+    /**
+     * Updates title/artist of a local/downloaded song: rewrites file tags and the song
+     * row, moving it to the (possibly new) artist and cleaning up an orphaned artist.
+     */
+    suspend fun updateSongMetadata(songId: String, newTitle: String, newArtist: String) {
+        withContext(Dispatchers.IO) {
+            val entity = songDao.getSongById(songId) ?: return@withContext
+
+            writeTags(entity) { tag ->
+                tag.setField(org.jaudiotagger.tag.FieldKey.TITLE, newTitle)
+                tag.setField(org.jaudiotagger.tag.FieldKey.ARTIST, newArtist)
+            }
+
+            // Artists group by album artist; only re-home album-less songs to the new track artist.
+            val oldArtistId = entity.artistId
+            val newArtistId = if (entity.albumId == null) {
+                "${entity.sourceType}:${newArtist.toIdComponent()}".also { id ->
+                    artistDao.upsertAll(listOf(ArtistEntity(id, newArtist, entity.sourceType)))
+                }
+            } else {
+                oldArtistId
+            }
+            songDao.upsertAll(listOf(entity.copy(title = newTitle, artist = newArtist, artistId = newArtistId)))
+
+            if (oldArtistId != null &&
+                oldArtistId != newArtistId &&
+                songDao.countSongsByArtistId(oldArtistId) == 0 &&
+                albumDao.countAlbumsByArtistId(oldArtistId) == 0
+            ) {
+                artistDao.deleteById(oldArtistId)
+            }
+
+            refreshLibraryFromDatabase()
+        }
+    }
+
     private fun areSongsMatching(local: SongUiModel, remote: SongUiModel): Boolean {
         fun normalize(s: String) = s.lowercase().replace(Regex("[^a-z0-9]"), "")
 
@@ -885,8 +1014,11 @@ class CalmMusicViewModel(
         localPlaybackMonitorJob?.cancel()
         localPlaybackMonitorJob = viewModelScope.launch {
             var lastYouTubeQueueIndex: Int? = null
-            val fastIntervalMs = 200L
+            // Every state emission recomposes the whole UI tree; on e-ink 1s is
+            // plenty for the position display and keeps the device responsive.
+            val fastIntervalMs = 1000L
             val slowIntervalMs = 2000L
+            var lastPersistElapsedMs = 0L
 
             while (true) {
                 val state = _playbackState.value
@@ -996,7 +1128,16 @@ class CalmMusicViewModel(
 
                 if (!didAutoAdvance && newState != state) {
                     _playbackState.value = newState
-                    persistPlaybackSnapshot(newState)
+
+                    // Persist on meaningful changes; position-only ticks at most every 5s.
+                    val significantChange = newState.currentSongId != state.currentSongId ||
+                            newState.isPlaybackPlaying != state.isPlaybackPlaying ||
+                            newState.playbackQueueIndex != state.playbackQueueIndex
+                    val nowElapsedMs = android.os.SystemClock.elapsedRealtime()
+                    if (significantChange || nowElapsedMs - lastPersistElapsedMs >= 5000L) {
+                        lastPersistElapsedMs = nowElapsedMs
+                        persistPlaybackSnapshot(newState)
+                    }
                 }
 
                 val nextDelayMs = when {
@@ -1168,52 +1309,20 @@ class CalmMusicViewModel(
 
     /**
      * Permanently delete a LOCAL_FILE or YOUTUBE_DOWNLOAD song, including its
-     * underlying file and any playlist memberships. Returns true if the
-     * database was updated successfully (file deletion best-effort).
+     * underlying file and any playlist memberships. Returns true only when the
+     * file is actually gone; otherwise the DB row is kept so a rescan doesn't
+     * silently resurrect a song the user believes deleted.
      */
     suspend fun deleteLocalMediaSong(song: SongUiModel): Boolean {
         if (song.sourceType != "LOCAL_FILE" && song.sourceType != "YOUTUBE_DOWNLOAD") return false
 
         return try {
-            withContext(Dispatchers.IO) {
-                val uriString = song.audioUri ?: song.id
-                if (uriString.isNotBlank()) {
-                    try {
-                        val uri = Uri.parse(uriString)
-                        if (song.sourceType == "YOUTUBE_DOWNLOAD") {
-                            // Downloads live under app-specific storage and are usually file:// URIs.
-                            if (uri.scheme == null || uri.scheme == "file") {
-                                uri.path?.let { path ->
-                                    try {
-                                        java.io.File(path).delete()
-                                    } catch (_: Exception) {
-                                    }
-                                }
-                            } else {
-                                try {
-                                    DocumentFile.fromSingleUri(app, uri)?.delete()
-                                } catch (_: Exception) {
-                                }
-                            }
-                        } else {
-                            try {
-                                DocumentFile.fromSingleUri(app, uri)?.delete()
-                            } catch (_: Exception) {
-                                if (uri.scheme == null || uri.scheme == "file") {
-                                    uri.path?.let { path ->
-                                        try {
-                                            java.io.File(path).delete()
-                                        } catch (_: Exception) {
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } catch (_: Exception) {
-                    }
-                }
+            val fileGone = withContext(Dispatchers.IO) {
+                deleteUnderlyingFile(song.audioUri ?: song.id)
+            }
+            if (!fileGone) return false
 
-                // Remove from all playlists and from the songs table.
+            withContext(Dispatchers.IO) {
                 playlistDao.deleteTracksForSongId(song.id)
                 songDao.deleteByIds(listOf(song.id))
             }
@@ -1225,9 +1334,45 @@ class CalmMusicViewModel(
         }
     }
 
+    /** Returns true when the file no longer exists afterwards. */
+    private fun deleteUnderlyingFile(uriString: String): Boolean {
+        if (uriString.isBlank()) return true
+        return try {
+            val uri = Uri.parse(uriString)
+            when {
+                uri.scheme == null || uri.scheme == "file" -> {
+                    val file = uri.path?.let { java.io.File(it) } ?: return true
+                    !file.exists() || file.delete()
+                }
+
+                uri.authority == android.provider.MediaStore.AUTHORITY -> {
+                    try {
+                        app.contentResolver.delete(uri, null, null) > 0
+                    } catch (_: Exception) {
+                        false
+                    }
+                }
+
+                else -> {
+                    val doc = DocumentFile.fromSingleUri(app, uri) ?: return false
+                    if (!doc.exists()) return true
+                    val deleted = try {
+                        android.provider.DocumentsContract.deleteDocument(app.contentResolver, uri)
+                    } catch (_: Exception) {
+                        false
+                    }
+                    deleted || !doc.exists()
+                }
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     suspend fun refreshLibraryFromDatabase() {
         try {
             val (allSongs, allAlbums) = withContext(Dispatchers.IO) {
+                songDao.alignArtistIdsWithAlbums()
                 val songsFromDb = songDao.getAllSongs()
                 val albumsFromDb = albumDao.getAllAlbums()
                 songsFromDb to albumsFromDb

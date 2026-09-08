@@ -76,6 +76,12 @@ interface SongDao {
     @Query("SELECT * FROM songs WHERE albumId = :albumId ORDER BY discNumber, trackNumber, title")
     suspend fun getSongsByAlbumId(albumId: String): List<SongEntity>
 
+    @Query("SELECT * FROM songs WHERE id = :id")
+    suspend fun getSongById(id: String): SongEntity?
+
+    @Query("SELECT COUNT(*) FROM songs WHERE artistId = :artistId")
+    suspend fun countSongsByArtistId(artistId: String): Int
+
     @Query("SELECT * FROM songs WHERE artist = :artist ORDER BY albumId, trackNumber, title")
     suspend fun getSongsByArtist(artist: String): List<SongEntity>
 
@@ -86,6 +92,18 @@ interface SongDao {
                 "ORDER BY s.albumId, s.trackNumber, s.title"
     )
     suspend fun getSongsByArtistId(artistId: String): List<SongEntity>
+
+    /**
+     * Artists group by album artist: point every album song at its album's artist
+     * so per-track (feat.) artists don't surface as standalone artists.
+     */
+    @Query(
+        "UPDATE songs SET artistId = (SELECT a.artistId FROM albums a WHERE a.id = songs.albumId) " +
+                "WHERE albumId IS NOT NULL " +
+                "AND (SELECT a.artistId FROM albums a WHERE a.id = songs.albumId) IS NOT NULL " +
+                "AND artistId IS NOT (SELECT a.artistId FROM albums a WHERE a.id = songs.albumId)"
+    )
+    suspend fun alignArtistIdsWithAlbums()
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(songs: List<SongEntity>)
@@ -108,11 +126,17 @@ interface AlbumDao {
     @Query("SELECT * FROM albums WHERE artistId = :artistId ORDER BY name")
     suspend fun getAlbumsByArtistId(artistId: String): List<AlbumEntity>
 
+    @Query("SELECT COUNT(*) FROM albums WHERE artistId = :artistId")
+    suspend fun countAlbumsByArtistId(artistId: String): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(albums: List<AlbumEntity>)
 
     @Query("DELETE FROM albums WHERE sourceType = :sourceType")
     suspend fun deleteBySourceType(sourceType: String)
+
+    @Query("DELETE FROM albums WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
 }
 
 @Dao
@@ -128,6 +152,7 @@ interface ArtistDao {
                 "LEFT JOIN albums al ON al.artistId = a.id " +
                 "LEFT JOIN songs s ON (s.artistId = a.id OR s.albumId = al.id) " +
                 "GROUP BY a.id " +
+                "HAVING COUNT(DISTINCT s.id) > 0 " +
                 "ORDER BY a.name COLLATE NOCASE",
     )
     suspend fun getAllArtistsWithCounts(): List<ArtistWithCounts>
@@ -137,4 +162,7 @@ interface ArtistDao {
 
     @Query("DELETE FROM artists WHERE sourceType = :sourceType")
     suspend fun deleteBySourceType(sourceType: String)
+
+    @Query("DELETE FROM artists WHERE id = :id")
+    suspend fun deleteById(id: String)
 }
