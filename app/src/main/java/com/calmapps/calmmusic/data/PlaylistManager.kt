@@ -5,7 +5,7 @@ import com.calmapps.calmmusic.ui.SongUiModel
 /**
  * Helper class responsible for playlist-related database operations.
  * Initially this only encapsulates "add song to playlist" behavior, mirroring
- * the existing logic from CalmMusic.
+ * the existing logic from MonoMusic.
  */
 class PlaylistManager(
     private val songDao: SongDao,

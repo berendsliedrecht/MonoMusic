@@ -5,7 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.calmapps.calmmusic.data.CalmMusicDatabase
+import com.calmapps.calmmusic.data.MonoMusicDatabase
 import com.calmapps.calmmusic.data.PlaylistManager
 import com.calmapps.calmmusic.data.PlaylistTrackEntity
 import com.calmapps.calmmusic.data.SongEntity
@@ -19,17 +19,17 @@ import kotlinx.coroutines.withContext
 
 /**
  * Dedicated ViewModel for playlist-related state and operations. This pulls
- * playlist concerns out of CalmMusicViewModel/MainActivity while preserving
+ * playlist concerns out of MonoMusicViewModel/MainActivity while preserving
  * existing behavior.
  */
 class PlaylistsViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
 
-    private val app: CalmMusic
-        get() = getApplication() as CalmMusic
+    private val app: MonoMusic
+        get() = getApplication() as MonoMusic
 
-    private val database: CalmMusicDatabase by lazy { CalmMusicDatabase.getDatabase(app) }
+    private val database: MonoMusicDatabase by lazy { MonoMusicDatabase.getDatabase(app) }
     private val songDao by lazy { database.songDao() }
     private val playlistDao by lazy { database.playlistDao() }
     private val playlistManager: PlaylistManager by lazy { PlaylistManager(songDao, playlistDao) }

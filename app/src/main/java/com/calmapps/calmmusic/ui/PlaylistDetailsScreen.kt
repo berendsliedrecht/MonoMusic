@@ -33,7 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calmapps.calmmusic.CalmMusicViewModel
+import com.calmapps.calmmusic.MonoMusicViewModel
 import com.calmapps.calmmusic.PlaylistsViewModel
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.buttons.FloatingActionButtonMMD
@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun PlaylistDetailsScreen(
     playlistId: String?,
-    playbackViewModel: CalmMusicViewModel,
+    playbackViewModel: MonoMusicViewModel,
     playlistsViewModel: PlaylistsViewModel,
     isInEditMode: Boolean,
     selectedSongIds: Set<String>,

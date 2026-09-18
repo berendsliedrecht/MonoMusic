@@ -41,7 +41,7 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CalmMusicTopAppBar(
+fun MonoMusicTopAppBar(
     currentDestination: NavDestination?,
     canNavigateBack: Boolean,
     focusRequester: FocusRequester,
@@ -195,7 +195,7 @@ fun CalmMusicTopAppBar(
             }
         },
         actions = {
-            CalmMusicTopAppBarActions(
+            MonoMusicTopAppBarActions(
                 currentDestination = currentDestination,
                 isPlaylistsEditMode = isPlaylistsEditMode,
                 playlistEditSelectionCount = playlistEditSelectionCount,
@@ -227,7 +227,7 @@ fun CalmMusicTopAppBar(
 }
 
 @Composable
-private fun CalmMusicTopAppBarActions(
+private fun MonoMusicTopAppBarActions(
     currentDestination: NavDestination?,
     isPlaylistsEditMode: Boolean,
     playlistEditSelectionCount: Int,
@@ -389,7 +389,7 @@ private fun CalmMusicTopAppBarActions(
 }
 
 @Composable
-fun CalmMusicBottomBar(
+fun MonoMusicBottomBar(
     currentDestination: NavDestination?,
     onNavigate: (String) -> Unit,
 ) {

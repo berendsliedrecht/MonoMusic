@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.calmapps.calmmusic.CalmMusicViewModel
+import com.calmapps.calmmusic.MonoMusicViewModel
 import com.mudita.mmd.components.buttons.FloatingActionButtonMMD
 import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.tabs.PrimaryTabRowMMD
@@ -33,7 +33,7 @@ import com.mudita.mmd.components.text.TextMMD
 @Composable
 fun AlbumDetailsScreen(
     album: AlbumUiModel?,
-    viewModel: CalmMusicViewModel,
+    viewModel: MonoMusicViewModel,
     onPlaySongClick: (SongUiModel, List<SongUiModel>) -> Unit,
     onShuffleClick: (List<SongUiModel>) -> Unit,
     onEditSongClick: (SongUiModel) -> Unit,

@@ -17,8 +17,8 @@ import com.apple.android.music.playback.model.PlaybackRepeatMode
 import com.calmapps.calmmusic.data.AlbumEntity
 import com.calmapps.calmmusic.data.ArtistEntity
 import com.calmapps.calmmusic.data.ArtistWithCounts
-import com.calmapps.calmmusic.data.CalmMusicDatabase
-import com.calmapps.calmmusic.data.CalmMusicSettingsManager
+import com.calmapps.calmmusic.data.MonoMusicDatabase
+import com.calmapps.calmmusic.data.MonoMusicSettingsManager
 import com.calmapps.calmmusic.data.LibraryRepository
 import com.calmapps.calmmusic.data.NowPlayingSnapshot
 import com.calmapps.calmmusic.data.NowPlayingStorage
@@ -41,17 +41,17 @@ import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 /**
- * ViewModel responsible for owning long-lived CalmMusic library state and
+ * ViewModel responsible for owning long-lived MonoMusic library state and
  */
-class CalmMusicViewModel(
+class MonoMusicViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
 
-    private val app: CalmMusic
+    private val app: MonoMusic
         @OptIn(UnstableApi::class)
-        get() = getApplication() as CalmMusic
+        get() = getApplication() as MonoMusic
 
-    private val database: CalmMusicDatabase by lazy { CalmMusicDatabase.getDatabase(app) }
+    private val database: MonoMusicDatabase by lazy { MonoMusicDatabase.getDatabase(app) }
     private val songDao by lazy { database.songDao() }
     private val albumDao by lazy { database.albumDao() }
     private val artistDao by lazy { database.artistDao() }
@@ -193,7 +193,7 @@ class CalmMusicViewModel(
     suspend fun getAlbumSongsForDetails(album: AlbumUiModel): List<SongUiModel> {
         val localSongs = getAlbumSongs(album.id)
 
-        val settings = CalmMusicSettingsManager(app)
+        val settings = MonoMusicSettingsManager(app)
         val shouldComplete = settings.getCompleteAlbumsWithYouTubeSync()
 
         if (localSongs.isNotEmpty()) {
@@ -1649,8 +1649,8 @@ class CalmMusicViewModel(
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    if (modelClass.isAssignableFrom(CalmMusicViewModel::class.java)) {
-                        return CalmMusicViewModel(application) as T
+                    if (modelClass.isAssignableFrom(MonoMusicViewModel::class.java)) {
+                        return MonoMusicViewModel(application) as T
                     }
                     throw IllegalArgumentException("Unknown ViewModel class ${'$'}modelClass")
                 }

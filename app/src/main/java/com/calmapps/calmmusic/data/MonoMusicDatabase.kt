@@ -18,7 +18,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     version = 9,
     exportSchema = false,
 )
-abstract class CalmMusicDatabase : RoomDatabase() {
+abstract class MonoMusicDatabase : RoomDatabase() {
 
     abstract fun songDao(): SongDao
     abstract fun albumDao(): AlbumDao
@@ -27,7 +27,7 @@ abstract class CalmMusicDatabase : RoomDatabase() {
 
     companion object {
         @Volatile
-        private var INSTANCE: CalmMusicDatabase? = null
+        private var INSTANCE: MonoMusicDatabase? = null
 
         private val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -48,11 +48,11 @@ abstract class CalmMusicDatabase : RoomDatabase() {
             }
         }
 
-        fun getDatabase(context: Context): CalmMusicDatabase {
+        fun getDatabase(context: Context): MonoMusicDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
-                    CalmMusicDatabase::class.java,
+                    MonoMusicDatabase::class.java,
                     "calmmusic.db",
                 )
                     .addMigrations(MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)

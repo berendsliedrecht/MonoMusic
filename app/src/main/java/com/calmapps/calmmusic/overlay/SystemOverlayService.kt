@@ -47,7 +47,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.calmapps.calmmusic.CalmMusic
+import com.calmapps.calmmusic.MonoMusic
 import com.calmapps.calmmusic.ExternalMediaRepository
 import com.calmapps.calmmusic.MainActivity
 import com.calmapps.calmmusic.PlaybackService
@@ -73,7 +73,7 @@ class SystemOverlayService : Service() {
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        playbackStateManager = (application as CalmMusic).playbackStateManager
+        playbackStateManager = (application as MonoMusic).playbackStateManager
 
         serviceScope.launch {
             playbackStateManager.state.collect { state ->
@@ -409,7 +409,7 @@ class SystemOverlayService : Service() {
     }
 
     private fun stopPlayback() {
-        val app = application as? CalmMusic
+        val app = application as? MonoMusic
 
         try {
             app?.appleMusicPlayer?.pause()

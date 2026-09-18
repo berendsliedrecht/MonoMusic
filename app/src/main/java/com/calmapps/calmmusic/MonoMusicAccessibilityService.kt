@@ -8,9 +8,9 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 
-class CalmMusicAccessibilityService : AccessibilityService() {
+class MonoMusicAccessibilityService : AccessibilityService() {
 
-    private val TAG = "CalmMusicAccess"
+    private val TAG = "MonoMusicAccess"
     private var lastClickTime: Long = 0
     private val CLICK_COOLDOWN_MS = 3000L
 
@@ -106,7 +106,7 @@ class CalmMusicAccessibilityService : AccessibilityService() {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
                 intent.putExtra("FROM_RADIO_TUNER", true)
                 startActivity(intent)
-                Log.d(TAG, "Returning to CalmMusic...")
+                Log.d(TAG, "Returning to MonoMusic...")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to return to app", e)

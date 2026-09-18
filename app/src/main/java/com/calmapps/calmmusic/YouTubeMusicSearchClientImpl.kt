@@ -12,7 +12,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItem
  * YouTube Music-only search client backed by NewPipe Extractor.
  *
  * This avoids the official YouTube Data API and restricts results to
- * YouTube Music songs so that only music tracks surface in CalmMusic.
+ * YouTube Music songs so that only music tracks surface in MonoMusic.
  */
 internal class YouTubeMusicSearchClientImpl(
     private val httpClient: OkHttpClient,

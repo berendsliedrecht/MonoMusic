@@ -2,7 +2,7 @@ package com.calmapps.calmmusic.data
 
 import android.net.Uri
 import android.os.Environment
-import com.calmapps.calmmusic.CalmMusic
+import com.calmapps.calmmusic.MonoMusic
 import com.calmapps.calmmusic.ui.AlbumUiModel
 import com.calmapps.calmmusic.ui.ArtistUiModel
 import com.calmapps.calmmusic.ui.SongUiModel
@@ -14,10 +14,10 @@ import kotlinx.coroutines.withContext
  * local Room database and filesystem scanners.
  */
 class LibraryRepository(
-    private val app: CalmMusic,
+    private val app: MonoMusic,
 ) {
 
-    private val database: CalmMusicDatabase by lazy { CalmMusicDatabase.getDatabase(app) }
+    private val database: MonoMusicDatabase by lazy { MonoMusicDatabase.getDatabase(app) }
     private val songDao by lazy { database.songDao() }
     private val albumDao by lazy { database.albumDao() }
     private val artistDao by lazy { database.artistDao() }

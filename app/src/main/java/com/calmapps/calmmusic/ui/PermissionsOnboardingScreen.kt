@@ -52,7 +52,7 @@ fun PermissionsOnboardingScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 TextMMD(
-                    text = "Welcome to CalmMusic",
+                    text = "Welcome to MonoMusic",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
@@ -62,12 +62,12 @@ fun PermissionsOnboardingScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 TextMMD(
-                    text = "Before getting started, CalmMusic needs a few permissions to be most useful. " +
+                    text = "Before getting started, MonoMusic needs a few permissions to be most useful. " +
                             "The \"Dynamic Island\" inspired overlay allows you to access what's playing from " +
                             "any screen.\n" +
                             "\n" +
                             "Most phones now have smart battery optimizations which can prevent " +
-                            "CalmMusic from continuing to run in the background when not actively playing " +
+                            "MonoMusic from continuing to run in the background when not actively playing " +
                             "a song. This will cause the overlay to disappear.",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Normal,
@@ -112,7 +112,7 @@ fun PermissionsOnboardingScreen(
                         text = if (hasBatteryOptimizationExemption) {
                             "Background optimization already allowed"
                         } else {
-                            "Allow CalmMusic to run in background"
+                            "Allow MonoMusic to run in background"
                         },
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,

@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calmapps.calmmusic.ExternalMediaRepository
 import com.calmapps.calmmusic.ExternalMediaState
-import com.calmapps.calmmusic.CalmMusicAccessibilityService
+import com.calmapps.calmmusic.MonoMusicAccessibilityService
 import com.mudita.mmd.components.bottom_sheet.ModalBottomSheetMMD
 import com.mudita.mmd.components.bottom_sheet.rememberModalBottomSheetMMDState
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
@@ -62,7 +62,7 @@ fun RadioScreen(
     if (!isRadioActive) {
         EmptyRadioState(
             onPowerOn = {
-                if (!isAccessibilityServiceEnabled(context, CalmMusicAccessibilityService::class.java)) {
+                if (!isAccessibilityServiceEnabled(context, MonoMusicAccessibilityService::class.java)) {
                     showAccessibilitySheet = true
                 } else if (!isNotificationListenerEnabled(context)) {
                     showNotificationSheet = true
@@ -100,7 +100,7 @@ fun RadioScreen(
         ) {
             PermissionSheetContent(
                 title = "Control Permission Required",
-                description = "To control the FM Radio tuner, CalmMusic requires the Accessibility Service permission. Please enable 'CalmMusic Helper' in the settings.",
+                description = "To control the FM Radio tuner, MonoMusic requires the Accessibility Service permission. Please enable 'MonoMusic Helper' in the settings.",
                 buttonText = "Open Accessibility Settings",
                 onConfirm = {
                     showAccessibilitySheet = false
@@ -120,7 +120,7 @@ fun RadioScreen(
         ) {
             PermissionSheetContent(
                 title = "Read Status Permission",
-                description = "To see the current radio frequency and status, CalmMusic needs to read the 'Now Playing' notification from the radio app. Please allow 'Notification Access' for CalmMusic.",
+                description = "To see the current radio frequency and status, MonoMusic needs to read the 'Now Playing' notification from the radio app. Please allow 'Notification Access' for MonoMusic.",
                 buttonText = "Open Notification Settings",
                 onConfirm = {
                     showNotificationSheet = false

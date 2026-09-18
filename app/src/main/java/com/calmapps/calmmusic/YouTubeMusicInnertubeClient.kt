@@ -12,7 +12,7 @@ import org.json.JSONObject
  * Minimal YouTube Music search client using the Innertube JSON API.
  *
  * This is intentionally small and focused: it only implements anonymous
- * search for songs/albums and returns just the metadata CalmMusic needs
+ * search for songs/albums and returns just the metadata MonoMusic needs
  * (videoId, title, artist, optional album, duration).
  */
 interface YouTubeMusicInnertubeClient {

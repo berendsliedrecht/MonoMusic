@@ -15,7 +15,7 @@ import com.apple.android.music.playback.controller.MediaPlayerController
 import com.apple.android.music.playback.controller.MediaPlayerControllerFactory
 import com.apple.android.sdk.authentication.AuthenticationFactory
 import com.apple.android.sdk.authentication.AuthenticationManager
-import com.calmapps.calmmusic.data.CalmMusicSettingsManager
+import com.calmapps.calmmusic.data.MonoMusicSettingsManager
 import com.calmapps.calmmusic.data.NowPlayingStorage
 import com.calmapps.calmmusic.data.PlaybackStateManager
 import com.calmapps.calmmusic.overlay.SystemOverlayService
@@ -23,7 +23,7 @@ import okhttp3.OkHttpClient
 import java.io.File
 
 @UnstableApi
-class CalmMusic : Application(), DefaultLifecycleObserver {
+class MonoMusic : Application(), DefaultLifecycleObserver {
 
     companion object {
         init {
@@ -105,7 +105,7 @@ class CalmMusic : Application(), DefaultLifecycleObserver {
         NowPlayingStorage(this)
     }
 
-    lateinit var settingsManager: CalmMusicSettingsManager
+    lateinit var settingsManager: MonoMusicSettingsManager
         private set
 
     lateinit var youTubeDownloadManager: YouTubeDownloadManager
@@ -114,7 +114,7 @@ class CalmMusic : Application(), DefaultLifecycleObserver {
     override fun onCreate() {
         super<Application>.onCreate()
 
-        settingsManager = CalmMusicSettingsManager(this)
+        settingsManager = MonoMusicSettingsManager(this)
         youTubeDownloadManager = YouTubeDownloadManager(
             app = this,
             appScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO),

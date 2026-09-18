@@ -7,7 +7,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import com.calmapps.calmmusic.data.AlbumEntity
 import com.calmapps.calmmusic.data.ArtistEntity
-import com.calmapps.calmmusic.data.CalmMusicDatabase
+import com.calmapps.calmmusic.data.MonoMusicDatabase
 import com.calmapps.calmmusic.data.LocalMusicScanner
 import com.calmapps.calmmusic.data.SongEntity
 import kotlinx.coroutines.CoroutineScope
@@ -45,7 +45,7 @@ data class YouTubeDownloadStatus(
 }
 
 class YouTubeDownloadManager(
-    private val app: CalmMusic,
+    private val app: MonoMusic,
     private val appScope: CoroutineScope,
 ) {
     private val client = OkHttpClient()
@@ -156,7 +156,7 @@ class YouTubeDownloadManager(
         val title = normalize(song.title)
         if (title.isEmpty()) return null
 
-        val songDao = CalmMusicDatabase.getDatabase(app).songDao()
+        val songDao = MonoMusicDatabase.getDatabase(app).songDao()
         val locals = withContext(Dispatchers.IO) {
             songDao.getSongsBySourceType("YOUTUBE_DOWNLOAD") + songDao.getSongsBySourceType("LOCAL_FILE")
         }
@@ -188,7 +188,7 @@ class YouTubeDownloadManager(
  */
 @OptIn(UnstableApi::class)
 internal suspend fun performYouTubeDownloadInternal(
-    app: CalmMusic,
+    app: MonoMusic,
     requestedSong: com.calmapps.calmmusic.ui.SongUiModel,
     albumArtist: String?,
     targetDir: File,
@@ -381,7 +381,7 @@ internal suspend fun performYouTubeDownloadInternal(
                 val settings = app.settingsManager
                 if (!settings.includeLocalMusic.value) settings.setIncludeLocalMusic(true)
 
-                val database = CalmMusicDatabase.getDatabase(app)
+                val database = MonoMusicDatabase.getDatabase(app)
                 val songDao = database.songDao()
                 val albumDao = database.albumDao()
                 val artistDao = database.artistDao()

@@ -86,7 +86,7 @@ class PlaybackService : MediaSessionService() {
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 super.onIsPlayingChanged(isPlaying)
-                (application as? CalmMusic)?.playbackStateManager?.updatePlaybackStatus(isPlaying)
+                (application as? MonoMusic)?.playbackStateManager?.updatePlaybackStatus(isPlaying)
             }
 
             override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
@@ -99,7 +99,7 @@ class PlaybackService : MediaSessionService() {
                         else -> "YOUTUBE"
                     }
 
-                    (application as? CalmMusic)?.playbackStateManager?.updateState(
+                    (application as? MonoMusic)?.playbackStateManager?.updateState(
                         songId = mediaItem.mediaId,
                         title = meta.title?.toString() ?: "Unknown Title",
                         artist = meta.artist?.toString() ?: "Unknown Artist",
@@ -134,7 +134,7 @@ class PlaybackService : MediaSessionService() {
 
     @OptIn(UnstableApi::class)
     private fun createDataSourceFactory(): DataSource.Factory {
-        val app = application as CalmMusic
+        val app = application as MonoMusic
 
         val okHttpClient = OkHttpClient.Builder()
             .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
@@ -193,7 +193,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     private fun createNotificationChannel() {
-        val name = "CalmMusic playback"
+        val name = "MonoMusic playback"
         val descriptionText = "Music playback controls"
         val importance = NotificationManager.IMPORTANCE_LOW
         val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {

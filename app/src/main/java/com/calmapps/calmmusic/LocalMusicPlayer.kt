@@ -10,7 +10,7 @@ import androidx.media3.exoplayer.ExoPlayer
  * Simple wrapper around ExoPlayer for playing local files (content URIs).
  *
  * This is intentionally minimal: no service, notifications, or background
- * playback. It is scoped to the application lifetime via [CalmMusic].
+ * playback. It is scoped to the application lifetime via [MonoMusic].
  */
 class LocalMusicPlayer(context: Context) {
 

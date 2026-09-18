@@ -13,13 +13,13 @@
         tools:ignore="QueryAllPackagesPermission" />
 
     <application
-        android:name=".CalmMusic"
+        android:name=".MonoMusic"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.CalmMusic">
+        android:theme="@style/Theme.MonoMusic">
 
         <service
             android:name=".PlaybackService"
@@ -46,9 +46,9 @@
             android:exported="false" />
 
         <service
-            android:name=".CalmMusicAccessibilityService"
+            android:name=".MonoMusicAccessibilityService"
             android:exported="true"
-            android:label="CalmMusic Helper"
+            android:label="MonoMusic Helper"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

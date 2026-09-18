@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
  * This keeps the most relevant YouTube songs "warm" so playback can start
  * quickly without blocking on NewPipe extraction.
  */
-class YouTubePrecacheManager(private val app: CalmMusic) {
+class YouTubePrecacheManager(private val app: MonoMusic) {
 
     private data class Entry(
         val url: String,

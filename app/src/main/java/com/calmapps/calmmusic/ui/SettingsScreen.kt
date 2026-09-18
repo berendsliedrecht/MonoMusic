@@ -112,9 +112,9 @@ fun SettingsScreen(
 
                         TextMMD(
                             text = if (hasBatteryOptimizationExemption) {
-                                "Battery optimizations are currently ignoring CalmMusic. Background playback is less likely to be stopped, but the system may still close the app in extreme cases."
+                                "Battery optimizations are currently ignoring MonoMusic. Background playback is less likely to be stopped, but the system may still close the app in extreme cases."
                             } else {
-                                "On some devices, battery optimizations can stop CalmMusic while playing in the background. You can request an exemption so the system is less likely to pause playback."
+                                "On some devices, battery optimizations can stop MonoMusic while playing in the background. You can request an exemption so the system is less likely to pause playback."
                             },
                             fontSize = 14.sp,
                         )
@@ -129,7 +129,7 @@ fun SettingsScreen(
                                 text = if (hasBatteryOptimizationExemption) {
                                     "Background optimization already allowed"
                                 } else {
-                                    "Allow CalmMusic to run in background"
+                                    "Allow MonoMusic to run in background"
                                 },
                                 fontSize = 16.sp,
                             )

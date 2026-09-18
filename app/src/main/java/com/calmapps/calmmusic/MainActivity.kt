@@ -119,15 +119,15 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    private val app: CalmMusic
+    private val app: MonoMusic
         @androidx.annotation.OptIn(UnstableApi::class)
-        get() = application as CalmMusic
+        get() = application as MonoMusic
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             ThemeMMD {
-                CalmMusic(app)
+                MonoMusic(app)
             }
         }
     }
@@ -169,7 +169,7 @@ class MainActivity : ComponentActivity() {
 @androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CalmMusic(app: CalmMusic) {
+fun MonoMusic(app: MonoMusic) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -186,7 +186,7 @@ fun CalmMusic(app: CalmMusic) {
 
     val settingsManager = app.settingsManager
 
-    val viewModel: CalmMusicViewModel = viewModel(factory = CalmMusicViewModel.factory(app))
+    val viewModel: MonoMusicViewModel = viewModel(factory = MonoMusicViewModel.factory(app))
     val playbackState by viewModel.playbackState.collectAsState()
     val downloadStatuses by app.youTubeDownloadManager.downloads.collectAsState()
 
@@ -996,7 +996,7 @@ fun CalmMusic(app: CalmMusic) {
         Scaffold(
             topBar = {
                 Column {
-                    CalmMusicTopAppBar(
+                    MonoMusicTopAppBar(
                         currentDestination = currentDestination,
                         canNavigateBack = canNavigateBack,
                         focusRequester = focusRequester,
@@ -1174,7 +1174,7 @@ fun CalmMusic(app: CalmMusic) {
                 }
             },
             bottomBar = {
-                CalmMusicBottomBar(
+                MonoMusicBottomBar(
                     currentDestination = currentDestination,
                     onNavigate = { route ->
                         navController.navigate(route) {
