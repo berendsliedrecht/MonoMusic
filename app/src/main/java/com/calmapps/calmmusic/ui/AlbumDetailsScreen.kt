@@ -37,6 +37,9 @@ fun AlbumDetailsScreen(
     onPlaySongClick: (SongUiModel, List<SongUiModel>) -> Unit,
     onShuffleClick: (List<SongUiModel>) -> Unit,
     onEditSongClick: (SongUiModel) -> Unit,
+    onAddToPlaylistClick: (SongUiModel) -> Unit,
+    onRemoveFromLibraryClick: (SongUiModel) -> Unit,
+    onDeleteClick: (SongUiModel) -> Unit,
     librarySongIds: Set<String> = emptySet(),
 ) {
     var songs by remember { mutableStateOf<List<SongUiModel>>(emptyList()) }
@@ -138,8 +141,10 @@ fun AlbumDetailsScreen(
                                     onPlaySongClick(song, songs)
                                 },
                                 onEdit = { onEditSongClick(song) },
+                                onAddToPlaylist = { onAddToPlaylistClick(song) },
+                                onRemoveFromLibrary = { onRemoveFromLibraryClick(song) },
+                                onDelete = { onDeleteClick(song) },
                                 showDivider = song != displaySongs.lastOrNull(),
-                                showTrackNumber = true,
                                 isInLibrary = librarySongIds.contains(song.id),
                             )
                         }

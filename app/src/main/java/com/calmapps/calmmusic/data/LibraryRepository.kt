@@ -305,12 +305,11 @@ class LibraryRepository(
         return withContext(Dispatchers.IO) {
             val downloadsDir = app.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: return@withContext 0
             val files = downloadsDir.listFiles()?.filter { it.isFile } ?: emptyList()
-            if (files.isEmpty()) return@withContext 0
 
             val existingDownloads = songDao.getSongsBySourceType("YOUTUBE_DOWNLOAD")
             val existingByUri = existingDownloads.associateBy { it.audioUri }
 
-            val toInsert = mutableListOf<SongEntity>()
+            val newSongs = mutableListOf<SongEntity>()
 
             for (file in files) {
                 val uri = Uri.fromFile(file)
@@ -325,14 +324,63 @@ class LibraryRepository(
                     fileSize = file.length(),
                     existing = null,
                 )
-                toInsert += scanned.song.copy(sourceType = "YOUTUBE_DOWNLOAD")
+                newSongs += scanned.song.copy(sourceType = "YOUTUBE_DOWNLOAD")
             }
 
-            if (toInsert.isNotEmpty()) {
-                songDao.upsertAll(toInsert)
+            // The scanner keys artist/album ids with a LOCAL_FILE prefix and creates no
+            // artist/album rows, which left ingested downloads invisible in the Artists
+            // and Albums lists. Re-key those songs, then recreate any missing artist and
+            // album rows (also repairs rows from earlier versions or a rebuilt database).
+            fun String.toIdComponent(): String = trim().replace(Regex("\\s+"), " ").lowercase()
+
+            val toRekey = newSongs + existingDownloads.filter {
+                it.artistId == null || it.artistId.startsWith("LOCAL_FILE:")
+            }
+            val rekeyed = toRekey.map { song ->
+                val artistKey = song.artist.toIdComponent().takeIf { it.isNotBlank() }
+                val albumKey = song.album?.toIdComponent()?.takeIf { it.isNotBlank() }
+                song.copy(
+                    artistId = artistKey?.let { "YOUTUBE_DOWNLOAD:$it" },
+                    albumId = if (artistKey != null && albumKey != null) {
+                        "YOUTUBE_DOWNLOAD:$artistKey:$albumKey"
+                    } else null,
+                )
+            }
+            if (rekeyed.isNotEmpty()) {
+                songDao.upsertAll(rekeyed)
             }
 
-            toInsert.size
+            val allDownloads = songDao.getSongsBySourceType("YOUTUBE_DOWNLOAD")
+            val knownArtistIds = artistDao.getAllArtists().mapTo(mutableSetOf()) { it.id }
+            val knownAlbumIds = albumDao.getAllAlbums().mapTo(mutableSetOf()) { it.id }
+
+            val missingArtists = mutableMapOf<String, ArtistEntity>()
+            val missingAlbums = mutableMapOf<String, AlbumEntity>()
+            for (song in allDownloads) {
+                val artistId = song.artistId
+                if (artistId != null && artistId !in knownArtistIds) {
+                    missingArtists.getOrPut(artistId) {
+                        ArtistEntity(id = artistId, name = song.artist, sourceType = "YOUTUBE_DOWNLOAD")
+                    }
+                }
+                val albumId = song.albumId
+                val albumName = song.album
+                if (albumId != null && albumName != null && albumId !in knownAlbumIds) {
+                    missingAlbums.getOrPut(albumId) {
+                        AlbumEntity(
+                            id = albumId,
+                            name = albumName,
+                            artist = song.artist,
+                            sourceType = "YOUTUBE_DOWNLOAD",
+                            artistId = artistId,
+                        )
+                    }
+                }
+            }
+            if (missingArtists.isNotEmpty()) artistDao.upsertAll(missingArtists.values.toList())
+            if (missingAlbums.isNotEmpty()) albumDao.upsertAll(missingAlbums.values.toList())
+
+            newSongs.size
         }
     }
 }

@@ -97,7 +97,7 @@ class YouTubeDownloadManager(
                     updateDownload(id) { it.copy(state = YouTubeDownloadStatus.State.IN_PROGRESS) }
                     performYouTubeDownloadInternal(
                         app = app,
-                        song = song,
+                        requestedSong = song,
                         albumArtist = albumArtist,
                         targetDir = musicDir,
                         context = context,
@@ -189,7 +189,7 @@ class YouTubeDownloadManager(
 @OptIn(UnstableApi::class)
 internal suspend fun performYouTubeDownloadInternal(
     app: CalmMusic,
-    song: com.calmapps.calmmusic.ui.SongUiModel,
+    requestedSong: com.calmapps.calmmusic.ui.SongUiModel,
     albumArtist: String?,
     targetDir: File,
     context: Context,
@@ -198,6 +198,23 @@ internal suspend fun performYouTubeDownloadInternal(
 ): Boolean {
     var tmpFile: File? = null
     try {
+        // Singles enqueued from search carry no track number; pull the real one from
+        // the album track list so album views order and number them correctly.
+        val song = if (requestedSong.trackNumber == null && !requestedSong.album.isNullOrBlank()) {
+            fun norm(s: String) = s.lowercase().replace(Regex("[^a-z0-9]"), "")
+            val match = try {
+                val tracks = app.youTubeInnertubeClient
+                    .findAlbumTracks(requestedSong.album, albumArtist ?: requestedSong.artist)
+                tracks.firstOrNull { it.videoId == requestedSong.id }
+                    ?: tracks.firstOrNull { norm(it.title) == norm(requestedSong.title) }
+            } catch (_: Exception) {
+                null
+            }
+            if (match?.trackNumber != null) requestedSong.copy(trackNumber = match.trackNumber) else requestedSong
+        } else {
+            requestedSong
+        }
+
         val videoId = song.id
         val TAG = "YouTubeDownload"
 

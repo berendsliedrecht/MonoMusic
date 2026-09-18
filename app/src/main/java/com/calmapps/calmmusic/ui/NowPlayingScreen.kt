@@ -300,26 +300,6 @@ fun NowPlayingScreen(
                 )
             }
 
-            IconButton(onClick = onShuffleClick) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Outlined.Shuffle,
-                        contentDescription = "Shuffle queue",
-                    )
-                    if (isShuffleOn) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(4.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = CircleShape,
-                                ),
-                        )
-                    }
-                }
-            }
-
             IconButton(onClick = onRepeatClick) {
                 val (icon, description, isActive) = when (repeatMode) {
                     RepeatMode.OFF -> Triple(Icons.Outlined.Repeat, "Repeat off", false)
@@ -346,6 +326,26 @@ fun NowPlayingScreen(
             }
 
             Spacer(modifier = Modifier.weight(1f))
+
+            IconButton(onClick = onShuffleClick) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Outlined.Shuffle,
+                        contentDescription = "Shuffle queue",
+                    )
+                    if (isShuffleOn) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(4.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = CircleShape,
+                                ),
+                        )
+                    }
+                }
+            }
 
             val isLocal = sourceType == "LOCAL_FILE" || sourceType == "YOUTUBE_DOWNLOAD"
             if (!isLocal) {

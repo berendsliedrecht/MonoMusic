@@ -67,7 +67,9 @@ fun PlaylistDetailsScreen(
     val currentSongId = playbackState.currentSongId
     val selectedState = remember { mutableStateMapOf<String, Boolean>() }
 
-    LaunchedEffect(playlistId) {
+    val refreshTrigger by playbackViewModel.libraryRefreshTrigger.collectAsState()
+
+    LaunchedEffect(playlistId, refreshTrigger) {
         if (playlistId == null) {
             isLoading = false
             return@LaunchedEffect

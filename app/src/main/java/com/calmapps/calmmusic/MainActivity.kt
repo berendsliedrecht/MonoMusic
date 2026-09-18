@@ -1325,6 +1325,9 @@ fun CalmMusic(app: CalmMusic) {
                             editSongArtist = song.artist
                             songToEdit = song
                         },
+                        onAddToPlaylistClick = onAddToPlaylist,
+                        onRemoveFromLibraryClick = onRemoveFromLibrary,
+                        onDeleteClick = onDelete,
                         librarySongIds = librarySongIds,
                     )
                 }
@@ -1344,6 +1347,9 @@ fun CalmMusic(app: CalmMusic) {
                         onShuffleSongsClick = { songs ->
                             startShuffledPlaybackFromQueue(songs)
                         },
+                        onAddToPlaylistClick = onAddToPlaylist,
+                        onRemoveFromLibraryClick = onRemoveFromLibrary,
+                        onDeleteClick = onDelete,
                     )
                 }
 

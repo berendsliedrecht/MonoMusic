@@ -186,7 +186,7 @@ class CalmMusicViewModel(
                     audioUri = entity.audioUri,
                     album = entity.album,
                 )
-            }.sortedWith(compareBy({ it.discNumber ?: 1 }, { it.trackNumber ?: 0 }))
+            }.sortedWith(compareBy({ it.discNumber ?: 1 }, { it.trackNumber ?: Int.MAX_VALUE }))
         }
     }
 
@@ -239,7 +239,7 @@ class CalmMusicViewModel(
         }
 
         if (availableLocal.isNotEmpty()) {
-            mergedList.addAll(availableLocal.sortedBy { it.trackNumber })
+            mergedList.addAll(availableLocal.sortedBy { it.trackNumber ?: Int.MAX_VALUE })
         }
 
         return mergedList
@@ -391,6 +391,36 @@ class CalmMusicViewModel(
 
     private suspend fun getYouTubeAlbumSongs(album: AlbumUiModel): List<SongUiModel> {
         return withContext(Dispatchers.IO) {
+            // Prefer the real album track list (correct order and track numbers).
+            val tracks = try {
+                val browseId = album.id.takeIf { it.startsWith("MPRE") }
+                if (browseId != null) {
+                    app.youTubeInnertubeClient.getAlbumTracks(browseId)
+                } else {
+                    app.youTubeInnertubeClient.findAlbumTracks(album.title, album.artist)
+                }
+            } catch (_: Exception) {
+                emptyList()
+            }
+
+            if (tracks.isNotEmpty()) {
+                return@withContext tracks.map { track ->
+                    SongUiModel(
+                        id = track.videoId,
+                        title = track.title,
+                        artist = track.artist ?: album.artist.orEmpty(),
+                        durationText = formatDurationMillis(track.durationMillis),
+                        durationMillis = track.durationMillis,
+                        trackNumber = track.trackNumber,
+                        discNumber = 1,
+                        sourceType = "YOUTUBE",
+                        audioUri = track.videoId,
+                        album = album.title,
+                    )
+                }
+            }
+
+            // Fallback: song search. Order is search rank, so don't invent track numbers.
             val termBuilder = StringBuilder().apply {
                 append(album.title)
                 val artist = album.artist
@@ -418,14 +448,14 @@ class CalmMusicViewModel(
 
             val songsForAlbum = if (filtered.isNotEmpty()) filtered else results
 
-            songsForAlbum.mapIndexed { index, item ->
+            songsForAlbum.map { item ->
                 SongUiModel(
                     id = item.videoId,
                     title = item.title,
                     artist = item.artist,
                     durationText = formatDurationMillis(item.durationMillis),
                     durationMillis = item.durationMillis,
-                    trackNumber = index + 1,
+                    trackNumber = null,
                     discNumber = 1,
                     sourceType = "YOUTUBE",
                     audioUri = item.videoId,
