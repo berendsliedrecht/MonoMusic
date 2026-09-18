@@ -164,6 +164,10 @@ If you open a pull request:
 - Avoid adding tracking, ads, or dark patterns.
 - Test on at least one real or virtual device on a supported Android version.
 
+## Support
+
+If you find this app useful, consider [sponsoring me](https://github.com/sponsors/berendsliedrecht).
+
 ## License
 
 GPL‑3.0 (see `LICENSE`).
