@@ -28,9 +28,7 @@ import com.mudita.mmd.components.text.TextMMD
 
 @Composable
 fun PermissionsOnboardingScreen(
-    hasBatteryOptimizationExemption: Boolean,
     hasStorageAccess: Boolean,
-    onRequestBatteryOptimizationClick: () -> Unit,
     onRequestStorageAccessClick: () -> Unit,
     onContinueClick: () -> Unit,
     onSkipClick: () -> Unit,
@@ -62,13 +60,7 @@ fun PermissionsOnboardingScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 TextMMD(
-                    text = "Before getting started, MonoMusic needs a few permissions to be most useful.\n" +
-                            "\n" +
-                            "Most phones now have smart battery optimizations which can prevent " +
-                            "MonoMusic from continuing to run in the background when not actively playing " +
-                            "a song.\n" +
-                            "\n" +
-                            "Downloaded songs are saved to Music/MonoMusic on your SD card or phone " +
+                    text = "Downloaded songs are saved to Music/MonoMusic on your SD card or phone " +
                             "storage. Reading songs added there by other apps or a computer " +
                             "requires the audio permission.",
                     fontSize = 16.sp,
@@ -84,26 +76,6 @@ fun PermissionsOnboardingScreen(
                     .padding(bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                OutlinedButtonMMD(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = onRequestBatteryOptimizationClick,
-                    enabled = !hasBatteryOptimizationExemption,
-                    contentPadding = PaddingValues(12.dp),
-                ) {
-                    TextMMD(
-                        text = if (hasBatteryOptimizationExemption) {
-                            "Background optimization already allowed"
-                        } else {
-                            "Allow MonoMusic to run in background"
-                        },
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
                 OutlinedButtonMMD(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = onRequestStorageAccessClick,
@@ -122,7 +94,7 @@ fun PermissionsOnboardingScreen(
                     )
                 }
 
-                if (hasBatteryOptimizationExemption && hasStorageAccess) {
+                if (hasStorageAccess) {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     OutlinedButtonMMD(

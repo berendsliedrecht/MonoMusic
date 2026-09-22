@@ -6,7 +6,6 @@ import android.content.ComponentName
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.os.PowerManager
 import android.provider.Settings
 import com.calmapps.calmmusic.data.MediaStoreSongs
 import android.util.Log
@@ -196,7 +195,6 @@ fun MonoMusic(app: MonoMusic) {
     val localMusicFolders = localMusicFoldersState.value
     val completeAlbumsWithYouTubeState = settingsManager.completeAlbumsWithYouTube.collectAsState()
     val completeAlbumsWithYouTube = completeAlbumsWithYouTubeState.value
-    var hasBatteryOptimizationExemption by rememberSaveable { mutableStateOf(false) }
     var hasStorageAccess by rememberSaveable { mutableStateOf(MediaStoreSongs.hasReadPermission(context)) }
     val storagePermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -205,20 +203,9 @@ fun MonoMusic(app: MonoMusic) {
         mutableStateOf(settingsManager.hasCompletedPermissionsOnboarding())
     }
 
-    fun updateBatteryOptimizationState() {
-        val powerManager = context.getSystemService(PowerManager::class.java)
-        hasBatteryOptimizationExemption =
-            powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
-    }
-
-    LaunchedEffect(Unit) {
-        updateBatteryOptimizationState()
-    }
-
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                updateBatteryOptimizationState()
                 hasStorageAccess = MediaStoreSongs.hasReadPermission(context)
 
                 val intent = activity?.intent
@@ -661,20 +648,7 @@ fun MonoMusic(app: MonoMusic) {
 
     if (shouldShowPermissionsOnboarding) {
         PermissionsOnboardingScreen(
-            hasBatteryOptimizationExemption = hasBatteryOptimizationExemption,
             hasStorageAccess = hasStorageAccess,
-            onRequestBatteryOptimizationClick = {
-                val powerManager = context.getSystemService(PowerManager::class.java)
-                if (powerManager != null &&
-                    !powerManager.isIgnoringBatteryOptimizations(context.packageName)
-                ) {
-                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                        data = "package:${context.packageName}".toUri()
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(intent)
-                }
-            },
             onRequestStorageAccessClick = {
                 storagePermissionLauncher.launch(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -707,8 +681,8 @@ fun MonoMusic(app: MonoMusic) {
     }
 
     val openStreamingSettings: () -> Unit = {
-        // General = 0, Streaming = 1, Local = 2
-        settingsSelectedTab = 1
+        // Streaming = 0, Local = 1
+        settingsSelectedTab = 0
         navController.navigate(Screen.Settings.route) {
             popUpTo(navController.graph.startDestinationId) { saveState = true }
             launchSingleTop = true
@@ -717,7 +691,7 @@ fun MonoMusic(app: MonoMusic) {
     }
 
     val openLocalSettings: () -> Unit = {
-        settingsSelectedTab = 2
+        settingsSelectedTab = 1
         navController.navigate(Screen.Settings.route) {
             popUpTo(navController.graph.startDestinationId) { saveState = true }
             launchSingleTop = true
@@ -1270,30 +1244,6 @@ fun MonoMusic(app: MonoMusic) {
                     val context = LocalContext.current
                     val lifecycleOwner = LocalLifecycleOwner.current
 
-                    var hasBatteryOptimizationExemption by remember { mutableStateOf(false) }
-
-                    fun updateBatteryOptimizationState() {
-                        val powerManager = context.getSystemService(PowerManager::class.java)
-                        hasBatteryOptimizationExemption =
-                            powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
-                    }
-
-                    LaunchedEffect(Unit) {
-                        updateBatteryOptimizationState()
-                    }
-
-                    DisposableEffect(lifecycleOwner) {
-                        val observer = LifecycleEventObserver { _, event ->
-                            if (event == Lifecycle.Event.ON_RESUME) {
-                                updateBatteryOptimizationState()
-                            }
-                        }
-                        lifecycleOwner.lifecycle.addObserver(observer)
-                        onDispose {
-                            lifecycleOwner.lifecycle.removeObserver(observer)
-                        }
-                    }
-
                     val folderPickerLauncher = rememberLauncherForActivityResult(
                         contract = ActivityResultContracts.OpenDocumentTree(),
                     ) { uri ->
@@ -1308,17 +1258,6 @@ fun MonoMusic(app: MonoMusic) {
                         }
                     }
 
-                    fun requestBatteryOptimizationExemption() {
-                        val powerManager = context.getSystemService(PowerManager::class.java)
-                        if (powerManager != null && !powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
-                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                data = "package:${context.packageName}".toUri()
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            context.startActivity(intent)
-                        }
-                    }
-
                     SettingsScreen(
                         selectedTab = settingsSelectedTab,
                         onSelectedTabChange = { settingsSelectedTab = it },
@@ -1328,8 +1267,6 @@ fun MonoMusic(app: MonoMusic) {
                         },
                         includeLocalMusic = includeLocalMusic,
                         localFolders = localMusicFolders.toList(),
-                        hasBatteryOptimizationExemption = hasBatteryOptimizationExemption,
-                        onRequestBatteryOptimizationExemption = { requestBatteryOptimizationExemption() },
                         onIncludeLocalMusicChange = { enabled ->
                             settingsManager.setIncludeLocalMusic(enabled)
                         },

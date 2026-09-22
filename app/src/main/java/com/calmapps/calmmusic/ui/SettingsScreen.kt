@@ -42,8 +42,6 @@ fun SettingsScreen(
     onCompleteAlbumsWithYouTubeChange: (Boolean) -> Unit,
     includeLocalMusic: Boolean,
     localFolders: List<String>,
-    hasBatteryOptimizationExemption: Boolean,
-    onRequestBatteryOptimizationExemption: () -> Unit,
     onIncludeLocalMusicChange: (Boolean) -> Unit,
     onAddFolderClick: () -> Unit,
     onRemoveFolderClick: (String) -> Unit,
@@ -57,8 +55,8 @@ fun SettingsScreen(
     localScanIndexedNewOrUpdated: Int?,
     localScanDeletedMissing: Int?,
 ) {
-    // 0 = General, 1 = Streaming, 2 = Local
-    val tabOptions = listOf("General", "Streaming", "Local")
+    // 0 = Streaming, 1 = Local
+    val tabOptions = listOf("Streaming", "Local")
 
     Column(
         modifier = Modifier
@@ -81,55 +79,6 @@ fun SettingsScreen(
         }
 
         if (selectedTab == 0) {
-            // General tab - app-wide settings
-            LazyColumnMMD(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(start = 16.dp, top = 16.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.Top,
-            ) {
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(end = 16.dp),
-                    ) {
-                        TextMMD(
-                            text = "Background playback",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        TextMMD(
-                            text = if (hasBatteryOptimizationExemption) {
-                                "Battery optimizations are currently ignoring MonoMusic. Background playback is less likely to be stopped, but the system may still close the app in extreme cases."
-                            } else {
-                                "On some devices, battery optimizations can stop MonoMusic while playing in the background. You can request an exemption so the system is less likely to pause playback."
-                            },
-                            fontSize = 14.sp,
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        OutlinedButtonMMD(
-                            onClick = onRequestBatteryOptimizationExemption,
-                            enabled = !hasBatteryOptimizationExemption,
-                        ) {
-                            TextMMD(
-                                text = if (hasBatteryOptimizationExemption) {
-                                    "Background optimization already allowed"
-                                } else {
-                                    "Allow MonoMusic to run in background"
-                                },
-                                fontSize = 16.sp,
-                            )
-                        }
-                    }
-                }
-            }
-        } else if (selectedTab == 1) {
             LazyColumnMMD(
                 modifier = Modifier
                     .fillMaxSize()
@@ -192,7 +141,7 @@ fun SettingsScreen(
                     }
                 }
             }
-        } else if (selectedTab == 2) {
+        } else if (selectedTab == 1) {
             LazyColumnMMD(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Top,
