@@ -83,7 +83,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.calmapps.calmmusic.overlay.SystemOverlayService
 import com.calmapps.calmmusic.ui.AlbumDetailsScreen
 import com.calmapps.calmmusic.ui.AlbumUiModel
 import com.calmapps.calmmusic.ui.AlbumsScreen
@@ -212,7 +211,6 @@ fun MonoMusic(app: MonoMusic) {
     val localMusicFolders = localMusicFoldersState.value
     val completeAlbumsWithYouTubeState = settingsManager.completeAlbumsWithYouTube.collectAsState()
     val completeAlbumsWithYouTube = completeAlbumsWithYouTubeState.value
-    var hasOverlayPermission by rememberSaveable { mutableStateOf(Settings.canDrawOverlays(context)) }
     var hasBatteryOptimizationExemption by rememberSaveable { mutableStateOf(false) }
     var hasStorageAccess by rememberSaveable { mutableStateOf(MediaStoreSongs.hasReadPermission(context)) }
     val storagePermissionLauncher = rememberLauncherForActivityResult(
@@ -235,7 +233,6 @@ fun MonoMusic(app: MonoMusic) {
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                hasOverlayPermission = Settings.canDrawOverlays(context)
                 updateBatteryOptimizationState()
                 hasStorageAccess = MediaStoreSongs.hasReadPermission(context)
 
@@ -252,13 +249,6 @@ fun MonoMusic(app: MonoMusic) {
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    LaunchedEffect(hasOverlayPermission) {
-        if (hasOverlayPermission) {
-            val intent = Intent(appContext, SystemOverlayService::class.java)
-            appContext.startService(intent)
         }
     }
 
@@ -712,20 +702,8 @@ fun MonoMusic(app: MonoMusic) {
 
     if (shouldShowPermissionsOnboarding) {
         PermissionsOnboardingScreen(
-            hasOverlayPermission = hasOverlayPermission,
             hasBatteryOptimizationExemption = hasBatteryOptimizationExemption,
             hasStorageAccess = hasStorageAccess,
-            onRequestOverlayPermissionClick = {
-                if (!Settings.canDrawOverlays(context)) {
-                    val intent = Intent(
-                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        "package:${context.packageName}".toUri(),
-                    ).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(intent)
-                }
-            },
             onRequestBatteryOptimizationClick = {
                 val powerManager = context.getSystemService(PowerManager::class.java)
                 if (powerManager != null &&

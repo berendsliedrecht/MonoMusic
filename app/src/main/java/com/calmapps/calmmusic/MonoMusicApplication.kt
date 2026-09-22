@@ -14,7 +14,6 @@ import androidx.media3.datasource.cache.SimpleCache
 import com.calmapps.calmmusic.data.MonoMusicSettingsManager
 import com.calmapps.calmmusic.data.NowPlayingStorage
 import com.calmapps.calmmusic.data.PlaybackStateManager
-import com.calmapps.calmmusic.overlay.SystemOverlayService
 import okhttp3.OkHttpClient
 import java.io.File
 
@@ -84,12 +83,5 @@ class MonoMusic : Application(), DefaultLifecycleObserver {
 
     override fun onStop(owner: LifecycleOwner) {
         playbackStateManager.setAppForegroundState(false)
-
-        val overlayState = playbackStateManager.state.value
-        val hasOverlayPermission = Settings.canDrawOverlays(this)
-        if (hasOverlayPermission && overlayState.songId != null) {
-            val intent = Intent(this, SystemOverlayService::class.java)
-            startService(intent)
-        }
     }
 }
