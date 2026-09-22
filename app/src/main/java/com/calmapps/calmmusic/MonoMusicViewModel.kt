@@ -463,8 +463,26 @@ class MonoMusicViewModel(
             songDao.getByAlbumKey(albumId).map { it.toUiModel() }
         }
 
+    /** Albums already looked up this session, successful or not. */
+    private val orderRepairAttempted = mutableSetOf<String>()
+
     suspend fun getAlbumSongsForDetails(album: AlbumUiModel): List<SongUiModel> {
-        val localSongs = getAlbumSongs(album.id)
+        var localSongs = getAlbumSongs(album.id)
+
+        // Broken ordering (missing or duplicated track numbers) repairs itself
+        // from the canonical YouTube Music track list, once, persisted.
+        val duplicated = localSongs.filter { it.trackNumber != null }
+            .groupBy { (it.discNumber ?: 1) to it.trackNumber }
+            .any { it.value.size > 1 }
+        val needsOrder = localSongs.isNotEmpty() &&
+            (localSongs.any { it.trackNumber == null } || duplicated)
+        if (needsOrder && orderRepairAttempted.add(album.id)) {
+            try {
+                repairAlbumOrder(album)
+            } catch (_: Exception) {
+            }
+            localSongs = getAlbumSongs(album.id)
+        }
 
         val settings = MonoMusicSettingsManager(app)
         val shouldComplete = settings.getCompleteAlbumsWithYouTubeSync()
@@ -720,7 +738,7 @@ class MonoMusicViewModel(
      * track and disc numbers into the rows and file tags (best effort).
      * Returns matched/total, or null when no canonical track list was found.
      */
-    suspend fun repairAlbumOrder(album: AlbumUiModel): Pair<Int, Int>? {
+    private suspend fun repairAlbumOrder(album: AlbumUiModel): Pair<Int, Int>? {
         val canonical = getYouTubeAlbumSongs(album)
         if (canonical.none { it.trackNumber != null }) return null
 

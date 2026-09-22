@@ -7,7 +7,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.FormatListNumbered
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
@@ -71,7 +70,6 @@ fun MonoMusicTopAppBar(
     onPlaylistDetailsRenameClick: () -> Unit,
     onPlaylistDetailsDeleteClick: () -> Unit,
     onAlbumDownloadClick: () -> Unit,
-    onAlbumFixOrderClick: () -> Unit,
     onAlbumRenameClick: () -> Unit,
     onShowDeletePlaylistSongsConfirmationClick: () -> Unit,
     onShowDeletePlaylistsConfirmationClick: () -> Unit,
@@ -216,7 +214,6 @@ fun MonoMusicTopAppBar(
                 onPlaylistDetailsRenameClick = onPlaylistDetailsRenameClick,
                 onPlaylistDetailsDeleteClick = onPlaylistDetailsDeleteClick,
                 onAlbumDownloadClick = onAlbumDownloadClick,
-                onAlbumFixOrderClick = onAlbumFixOrderClick,
                 onAlbumRenameClick = onAlbumRenameClick,
                 onShowDeletePlaylistSongsConfirmationClick = onShowDeletePlaylistSongsConfirmationClick,
                 onShowDeletePlaylistsConfirmationClick = onShowDeletePlaylistsConfirmationClick,
@@ -249,7 +246,6 @@ private fun MonoMusicTopAppBarActions(
     onPlaylistDetailsRenameClick: () -> Unit,
     onPlaylistDetailsDeleteClick: () -> Unit,
     onAlbumDownloadClick: () -> Unit,
-    onAlbumFixOrderClick: () -> Unit,
     onAlbumRenameClick: () -> Unit,
     onShowDeletePlaylistSongsConfirmationClick: () -> Unit,
     onShowDeletePlaylistsConfirmationClick: () -> Unit,
@@ -327,12 +323,6 @@ private fun MonoMusicTopAppBarActions(
                 )
             }
         } else if (canRenameSelectedAlbum) {
-            IconButton(onClick = onAlbumFixOrderClick) {
-                Icon(
-                    imageVector = Icons.Outlined.FormatListNumbered,
-                    contentDescription = "Fix track order",
-                )
-            }
             IconButton(onClick = onAlbumRenameClick) {
                 Icon(
                     imageVector = Icons.Outlined.Edit,
