@@ -69,6 +69,7 @@ class LibraryRepository(
         songDao.upsertAll(changed)
 
         repairLegacyIds(existing, reconciled)
+        dedupeStreamTwins()
         repairMissingKeys()
 
         // Prune local songs whose file vanished; stream-only rows stay.
@@ -113,6 +114,45 @@ class LibraryRepository(
                 ?: old.localUri?.let { baseNameOf(it)?.let(scannedByName::get) }
             if (target == null || target.id == old.id) continue
             relinkPlaylists(old.id, target.id)
+        }
+    }
+
+    /**
+     * A stream-only row and a local row for the same track in the same album
+     * are one song: keep the video id identity and attach the file to it.
+     * Pre-rewrite libraries could hold both when an album was added as a
+     * stream and downloaded separately.
+     */
+    private suspend fun dedupeStreamTwins() {
+        val all = songDao.getAll()
+        val streamOnly = all.filter {
+            it.isYouTube && it.localUri == null && it.albumKey != null &&
+                !it.id.startsWith("content://") && !it.id.startsWith("file://")
+        }
+        if (streamOnly.isEmpty()) return
+
+        fun norm(t: String) = t.lowercase().replace(Regex("[^a-z0-9]"), "")
+        val localsByAlbum = all.filter { !it.isYouTube && it.localUri != null && it.albumKey != null }
+            .groupBy { it.albumKey!! }
+
+        for (stream in streamOnly) {
+            val twin = localsByAlbum[stream.albumKey]?.firstOrNull { local ->
+                norm(local.title) == norm(stream.title) &&
+                    (local.durationMillis == null || stream.durationMillis == null ||
+                        kotlin.math.abs(local.durationMillis - stream.durationMillis) < 5000)
+            } ?: continue
+            songDao.upsertAll(
+                listOf(
+                    stream.copy(
+                        localUri = twin.localUri,
+                        localLastModified = twin.localLastModified,
+                        localSizeBytes = twin.localSizeBytes,
+                        trackNumber = stream.trackNumber ?: twin.trackNumber,
+                        discNumber = stream.discNumber ?: twin.discNumber,
+                    ),
+                ),
+            )
+            relinkPlaylists(twin.id, stream.id)
         }
     }
 
