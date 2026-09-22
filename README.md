@@ -86,11 +86,10 @@ Regardless of where your music comes from:
 - Use **shuffle** and **repeat** without losing your place.
 - Move naturally between songs with simple previous/next controls.
 
-### 4. Mindful playback & overlays
+### 4. Mindful playback
 
 - A quiet **Now Playing** screen with big typography and simple controls—easy on the eyes and on E‑ink.
 - Minimal chrome so the artwork, title, and basic actions are all you see.
-- Optional system overlay support so you can see what’s playing without reopening the full app (implementation may vary by device).
 
 ## Getting started
 
