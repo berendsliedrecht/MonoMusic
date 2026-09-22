@@ -328,11 +328,6 @@ class LibraryRepository(
 
     suspend fun ingestAppDownloadsIfMissing(): Int {
         return withContext(Dispatchers.IO) {
-            // Apple Music support was removed; drop any leftover library rows.
-            songDao.deleteBySourceType("APPLE_MUSIC")
-            albumDao.deleteBySourceType("APPLE_MUSIC")
-            artistDao.deleteBySourceType("APPLE_MUSIC")
-
             migrateAppDirDownloads()
 
             val items = MediaStoreSongs.queryAll(app)
