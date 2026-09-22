@@ -1,7 +1,4 @@
 <img align="left" src="logo.svg" width="100" height="100" alt="MonoMusic Logo">
-<a href="https://www.buymeacoffee.com/davidraywilson" target="_blank">
-  <img align="right" src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174">
-</a>
 
 <br clear="all" />
 
@@ -12,6 +9,8 @@ A calm, E‑ink‑friendly music player that puts your attention and privacy fir
 MonoMusic brings together your **local files** and **YouTube Music** search/streaming into one quiet, distraction‑free place to listen.
 
 "Let's make technology useful again."
+
+Originally forked from [davidraywilson/CalmMusic](https://github.com/davidraywilson/CalmMusic), but after a major core rework, it is no longer considered a fork.
 
 ## Screenshots
 
