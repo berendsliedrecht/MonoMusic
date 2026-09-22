@@ -677,12 +677,21 @@ class MonoMusicViewModel(
     }
 
     /**
-     * Updates title/artist of a local/downloaded song: rewrites file tags and
-     * re-keys the row.
+     * Updates title/artist of a local/downloaded song: rewrites file tags (best
+     * effort) and re-keys the row. The uri fallback covers callers holding a
+     * stale id, e.g. a queue restored before a scan re-keyed the song. Returns
+     * false when the song cannot be found at all.
      */
-    suspend fun updateSongMetadata(songId: String, newTitle: String, newArtist: String) {
-        withContext(Dispatchers.IO) {
-            val song = songDao.getById(songId) ?: return@withContext
+    suspend fun updateSongMetadata(
+        songId: String,
+        audioUri: String?,
+        newTitle: String,
+        newArtist: String,
+    ): Boolean {
+        val updated = withContext(Dispatchers.IO) {
+            val song = songDao.getById(songId)
+                ?: audioUri?.let { uri -> songDao.getAll().firstOrNull { it.localUri == uri } }
+                ?: return@withContext false
 
             writeTags(song) { tag ->
                 tag.setField(org.jaudiotagger.tag.FieldKey.TITLE, newTitle)
@@ -700,8 +709,42 @@ class MonoMusicViewModel(
                     ),
                 ),
             )
-            refreshLibraryFromDatabase()
+            true
         }
+        if (updated) refreshLibraryFromDatabase()
+        return updated
+    }
+
+    /**
+     * Orders a local album by the canonical YouTube Music track list, writing
+     * track and disc numbers into the rows and file tags (best effort).
+     * Returns matched/total, or null when no canonical track list was found.
+     */
+    suspend fun repairAlbumOrder(album: AlbumUiModel): Pair<Int, Int>? {
+        val canonical = getYouTubeAlbumSongs(album)
+        if (canonical.none { it.trackNumber != null }) return null
+
+        val result = withContext(Dispatchers.IO) {
+            val locals = songDao.getByAlbumKey(album.id)
+            val updated = mutableListOf<Song>()
+            for (song in locals) {
+                val match = canonical.firstOrNull { yt ->
+                    yt.trackNumber != null && areSongsMatching(song.toUiModel(), yt)
+                } ?: continue
+                writeTags(song) { tag ->
+                    tag.setField(org.jaudiotagger.tag.FieldKey.TRACK, match.trackNumber.toString())
+                    match.discNumber?.let { tag.setField(org.jaudiotagger.tag.FieldKey.DISC_NO, it.toString()) }
+                }
+                updated += song.copy(
+                    trackNumber = match.trackNumber,
+                    discNumber = match.discNumber ?: song.discNumber,
+                )
+            }
+            if (updated.isNotEmpty()) songDao.upsertAll(updated)
+            updated.size to locals.size
+        }
+        refreshLibraryFromDatabase()
+        return result
     }
 
     // ------------------------------------------------------------------

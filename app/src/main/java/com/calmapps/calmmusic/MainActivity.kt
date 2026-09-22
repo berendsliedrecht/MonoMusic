@@ -903,6 +903,26 @@ fun MonoMusic(app: MonoMusic) {
                         playlistDetailsSelectionCount = playlistDetailsSelectionCount,
                         isPlaylistDetailsMenuExpanded = isPlaylistDetailsMenuExpanded,
                         canDownloadSelectedAlbum = selectedAlbum?.sourceType == "YOUTUBE",
+                        onAlbumFixOrderClick = {
+                            val album = selectedAlbum
+                            if (album != null) {
+                                libraryScope.launch {
+                                    val result = try {
+                                        viewModel.repairAlbumOrder(album)
+                                    } catch (_: Exception) {
+                                        null
+                                    }
+                                    snackbarHostState.showSnackbar(
+                                        message = when {
+                                            result == null -> "Album not found on YouTube Music"
+                                            else -> "Ordered ${result.first} of ${result.second} songs"
+                                        },
+                                        withDismissAction = false,
+                                        duration = SnackbarDurationMMD.Short,
+                                    )
+                                }
+                            }
+                        },
                         canRenameSelectedAlbum = selectedAlbum?.sourceType == "LOCAL_FILE" ||
                                 selectedAlbum?.sourceType == "YOUTUBE_DOWNLOAD",
                         hasNowPlaying = nowPlayingSong != null,
@@ -1748,9 +1768,14 @@ fun MonoMusic(app: MonoMusic) {
                             songToEdit = null
                             libraryScope.launch {
                                 try {
-                                    viewModel.updateSongMetadata(song.id, newTitle, newArtist)
+                                    val updated = viewModel.updateSongMetadata(
+                                        song.id,
+                                        song.audioUri,
+                                        newTitle,
+                                        newArtist,
+                                    )
                                     snackbarHostState.showSnackbar(
-                                        message = "Song updated",
+                                        message = if (updated) "Song updated" else "Couldn't find this song in the library",
                                         withDismissAction = false,
                                         duration = SnackbarDurationMMD.Short,
                                     )
