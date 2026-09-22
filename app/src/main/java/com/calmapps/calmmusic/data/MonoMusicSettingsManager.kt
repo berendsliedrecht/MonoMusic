@@ -21,6 +21,13 @@ class MonoMusicSettingsManager(context: Context) {
     private val _completeAlbumsWithYouTube = MutableStateFlow(getCompleteAlbumsWithYouTubeSync())
     val completeAlbumsWithYouTube: StateFlow<Boolean> = _completeAlbumsWithYouTube.asStateFlow()
 
+    fun getIdentifyFailedIds(): Set<String> =
+        prefs.getStringSet(KEY_IDENTIFY_FAILED_IDS, emptySet()) ?: emptySet()
+
+    fun addIdentifyFailedIds(ids: Set<String>) {
+        prefs.edit { putStringSet(KEY_IDENTIFY_FAILED_IDS, getIdentifyFailedIds() + ids) }
+    }
+
     fun getLastLocalLibraryScanMillis(): Long {
         return prefs.getLong(KEY_LAST_LOCAL_LIBRARY_SCAN_MILLIS, 0L)
     }
@@ -78,6 +85,7 @@ class MonoMusicSettingsManager(context: Context) {
 
     companion object {
         private const val PREFS_NAME = "calmmusic_settings"
+        private const val KEY_IDENTIFY_FAILED_IDS = "identify_failed_ids"
         private const val KEY_INCLUDE_LOCAL_MUSIC = "include_local_music"
         private const val KEY_LOCAL_MUSIC_FOLDERS = "local_music_folders"
         private const val KEY_LAST_LOCAL_LIBRARY_SCAN_MILLIS = "last_local_library_scan_millis"

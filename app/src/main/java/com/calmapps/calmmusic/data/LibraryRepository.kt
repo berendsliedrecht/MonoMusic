@@ -156,6 +156,84 @@ class LibraryRepository(
         }
     }
 
+    /**
+     * Local-only songs are almost always downloads that predate the embedded
+     * video id tag. Match them on YouTube Music by title, artist, and duration
+     * and adopt the video id, so downloads stop presenting as plain local
+     * files. Unmatched songs are remembered and never retried; lookups that
+     * error (offline) retry on a later run. Returns how many were adopted.
+     */
+    suspend fun identifyLocalSongs(): Int = withContext(Dispatchers.IO) {
+        val failed = app.settingsManager.getIdentifyFailedIds()
+        val candidates = songDao.getAll().filter {
+            !it.isYouTube && it.localUri != null && it.durationMillis != null && it.id !in failed
+        }
+        if (candidates.isEmpty()) return@withContext 0
+
+        fun norm(t: String) = t.lowercase().replace(Regex("[^a-z0-9]"), "")
+        var adopted = 0
+        val newFailures = mutableSetOf<String>()
+
+        for (song in candidates) {
+            val query = listOf(song.title, song.artist).filter { it.isNotBlank() }.joinToString(" ")
+            if (query.isBlank()) {
+                newFailures += song.id
+                continue
+            }
+            val results = try {
+                app.youTubeInnertubeClient.searchSongs(query = query, limit = 5)
+            } catch (_: Exception) {
+                continue
+            }
+
+            val match = results.firstOrNull { result ->
+                norm(result.title) == norm(song.title) &&
+                    result.durationMillis != null &&
+                    kotlin.math.abs(result.durationMillis - song.durationMillis!!) < 3000 &&
+                    (song.artist.isBlank() || result.artist.isBlank() ||
+                        norm(result.artist).contains(norm(song.artist)) ||
+                        norm(song.artist).contains(norm(result.artist)))
+            }
+            if (match == null || songDao.getById(match.videoId) != null) {
+                newFailures += song.id
+                continue
+            }
+
+            // A tagless file (blank artist) takes YouTube's metadata; otherwise
+            // the file's own tags stay authoritative and only the id changes.
+            val tagless = song.artist.isBlank()
+            val artist = if (tagless) match.artist else song.artist
+            val title = if (tagless) match.title else song.title
+            val album = song.album ?: match.album?.takeIf { tagless }
+            val artistKey = Song.artistKeyOf(artist, song.albumArtist)
+            songDao.upsertAll(
+                listOf(
+                    song.copy(
+                        id = match.videoId,
+                        title = title,
+                        artist = artist,
+                        album = album,
+                        artistKey = artistKey,
+                        albumKey = Song.albumKeyOf(artistKey, album),
+                    ),
+                ),
+            )
+            relinkPlaylists(song.id, match.videoId)
+            TagWriter.writeTags(app, song.localUri) { tag ->
+                tag.setField(org.jaudiotagger.tag.FieldKey.CUSTOM1, LibraryScanner.videoIdTagValue(match.videoId))
+                if (tagless) {
+                    tag.setField(org.jaudiotagger.tag.FieldKey.TITLE, title)
+                    tag.setField(org.jaudiotagger.tag.FieldKey.ARTIST, artist)
+                    album?.let { tag.setField(org.jaudiotagger.tag.FieldKey.ALBUM, it) }
+                }
+            }
+            adopted++
+        }
+
+        if (newFailures.isNotEmpty()) app.settingsManager.addIdentifyFailedIds(newFailures)
+        adopted
+    }
+
     /** Moves playlist rows from [oldId] to [newId] and drops the old song row. */
     private suspend fun relinkPlaylists(oldId: String, newId: String) {
         playlistDao.deleteTracksSupersededBy(oldId, newId)
@@ -192,18 +270,25 @@ class LibraryRepository(
      */
     private fun migrateAppDirDownloads() {
         val appDirs = app.getExternalFilesDirs(Environment.DIRECTORY_MUSIC).filterNotNull()
-        // Skip files already published (resume after an interrupted migration).
-        val published = MediaStoreSongs.queryAll(app)
-            .mapTo(mutableSetOf()) { it.displayName to it.sizeBytes }
+        // Keyed by name alone: inserting under a name MediaStore already tracks
+        // (even as a stale row) silently creates a "name (1)" twin.
+        val publishedSizeByName = MediaStoreSongs.queryAll(app)
+            .associate { it.displayName to it.sizeBytes }
         for (dir in appDirs) {
             val files = dir.listFiles()
                 ?.filter { it.isFile && it.extension.lowercase() in LibraryScanner.AUDIO_EXTENSIONS }
                 .orEmpty()
             for (file in files) {
-                if ((file.name to file.length()) !in published) {
-                    MediaStoreSongs.insert(app, file, file.name) ?: continue
+                when (publishedSizeByName[file.name]) {
+                    null -> {
+                        MediaStoreSongs.insert(app, file, file.name) ?: continue
+                        file.delete()
+                    }
+                    file.length() -> file.delete()
+                    // Same name, different content: leave the file rather than
+                    // risk a duplicate; a later sync retries once rows settle.
+                    else -> {}
                 }
-                file.delete()
             }
         }
     }

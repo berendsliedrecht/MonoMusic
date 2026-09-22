@@ -629,35 +629,8 @@ class MonoMusicViewModel(
     // Tag editing
     // ------------------------------------------------------------------
 
-    /**
-     * Rewrites tags on the underlying file. MediaStore/SAF uris cannot be
-     * handed to jaudiotagger directly, so the file round-trips through cache.
-     */
     private fun writeTags(song: Song, apply: (org.jaudiotagger.tag.Tag) -> Unit) {
-        val uriString = song.localUri ?: return
-        try {
-            val uri = Uri.parse(uriString)
-            val extension = song.localUri.substringAfterLast('.', "m4a")
-            val temp = File.createTempFile("tag_edit", ".$extension", app.cacheDir)
-            try {
-                app.contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(temp).use { input.copyTo(it) }
-                } ?: return
-
-                org.jaudiotagger.tag.TagOptionSingleton.getInstance().isAndroid = true
-                val audioFile = org.jaudiotagger.audio.AudioFileIO.read(temp)
-                apply(audioFile.tagAndConvertOrCreateAndSetDefault)
-                audioFile.commit()
-
-                app.contentResolver.openOutputStream(uri, "wt")?.use { output ->
-                    temp.inputStream().use { it.copyTo(output) }
-                }
-            } finally {
-                temp.delete()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        com.calmapps.calmmusic.data.TagWriter.writeTags(app, song.localUri, apply)
     }
 
     /**
@@ -953,6 +926,12 @@ class MonoMusicViewModel(
 
             _isLoadingSongs.value = false
             _isLoadingAlbums.value = false
+
+            // Give pre-rewrite downloads their YouTube identity back.
+            try {
+                if (libraryRepository.identifyLocalSongs() > 0) refreshLibraryFromDatabase()
+            } catch (_: Exception) {
+            }
         }
     }
 
