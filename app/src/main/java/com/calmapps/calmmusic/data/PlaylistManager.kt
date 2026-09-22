@@ -1,5 +1,6 @@
 package com.calmapps.calmmusic.data
 
+import com.calmapps.calmmusic.toSkeletonSong
 import com.calmapps.calmmusic.ui.SongUiModel
 
 /**
@@ -19,30 +20,18 @@ class PlaylistManager(
     )
 
     /**
-     * Add the given song to the specified playlist, creating the SongEntity and
-     * PlaylistTrackEntity entries as needed. Returns information about whether
-     * the song was newly added or already present, along with the updated
-     * playlist song count if available.
+     * Add the given song to the specified playlist, inserting a Song row when
+     * the id is not in the library yet. Returns information about whether the
+     * song was newly added or already present, along with the updated playlist
+     * song count if available.
      */
     suspend fun addSongToPlaylist(
         song: SongUiModel,
         playlistId: String,
     ): AddSongResult {
-        val entity = SongEntity(
-            id = song.id,
-            title = song.title,
-            artist = song.artist,
-            album = null,
-            albumId = null,
-            discNumber = null,
-            trackNumber = song.trackNumber,
-            durationMillis = song.durationMillis,
-            sourceType = song.sourceType,
-            audioUri = song.audioUri ?: song.id,
-            artistId = null,
-            releaseYear = null,
-        )
-        songDao.upsertAll(listOf(entity))
+        if (songDao.getById(song.id) == null) {
+            songDao.upsertAll(listOf(song.toSkeletonSong()))
+        }
 
         val existing = playlistDao.getSongsForPlaylist(playlistId)
         val existsAlready = existing.any { it.id == song.id }

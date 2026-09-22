@@ -83,31 +83,6 @@ class PlaybackService : MediaSessionService() {
                 errorCallback?.invoke(error)
                 super.onPlayerError(error)
             }
-
-            override fun onIsPlayingChanged(isPlaying: Boolean) {
-                super.onIsPlayingChanged(isPlaying)
-                (application as? MonoMusic)?.playbackStateManager?.updatePlaybackStatus(isPlaying)
-            }
-
-            override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
-                super.onMediaItemTransition(mediaItem, reason)
-                val meta = mediaItem?.mediaMetadata
-                if (meta != null) {
-                    val uri = mediaItem.localConfiguration?.uri
-                    val inferredSourceType = when (uri?.scheme) {
-                        "content", "file" -> "LOCAL_FILE"
-                        else -> "YOUTUBE"
-                    }
-
-                    (application as? MonoMusic)?.playbackStateManager?.updateState(
-                        songId = mediaItem.mediaId,
-                        title = meta.title?.toString() ?: "Unknown Title",
-                        artist = meta.artist?.toString() ?: "Unknown Artist",
-                        isPlaying = player.isPlaying,
-                        sourceType = inferredSourceType,
-                    )
-                }
-            }
         })
 
         val sessionActivityIntent = Intent(this, MainActivity::class.java).apply {
@@ -167,7 +142,7 @@ class PlaybackService : MediaSessionService() {
 
             if (cached != null) {
                 val (cachedUrl, cachedLabel) = cached
-                app.playbackStateManager.updateStreamResolverLabel(cachedLabel)
+                app.streamResolverLabel.value = cachedLabel
                 return@Factory dataSpec.withUri(cachedUrl.toUri())
             }
 
@@ -179,7 +154,7 @@ class PlaybackService : MediaSessionService() {
                 }
             }
             precache.putUrl(videoId, resolvedUrl, resolverLabel, now)
-            app.playbackStateManager.updateStreamResolverLabel(resolverLabel)
+            app.streamResolverLabel.value = resolverLabel
 
             dataSpec.withUri(resolvedUrl.toUri())
         }

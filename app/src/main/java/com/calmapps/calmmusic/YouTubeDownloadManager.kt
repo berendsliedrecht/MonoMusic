@@ -4,11 +4,9 @@ import android.content.Context
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
-import com.calmapps.calmmusic.data.AlbumEntity
-import com.calmapps.calmmusic.data.ArtistEntity
+import com.calmapps.calmmusic.data.LibraryScanner
 import com.calmapps.calmmusic.data.MonoMusicDatabase
-import com.calmapps.calmmusic.data.LocalMusicScanner
-import com.calmapps.calmmusic.data.SongEntity
+import com.calmapps.calmmusic.data.Song
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -139,15 +137,19 @@ class YouTubeDownloadManager(
             }
         }
 
-    private suspend fun findExistingLocalCopy(song: com.calmapps.calmmusic.ui.SongUiModel): SongEntity? {
+    private suspend fun findExistingLocalCopy(song: com.calmapps.calmmusic.ui.SongUiModel): Song? {
+        val songDao = MonoMusicDatabase.getDatabase(app).songDao()
+
+        withContext(Dispatchers.IO) { songDao.getById(song.id) }
+            ?.let { if (it.hasLocalCopy) return it }
+
         fun normalize(s: String) = s.lowercase().replace(Regex("[^a-z0-9]"), "")
 
         val title = normalize(song.title)
         if (title.isEmpty()) return null
 
-        val songDao = MonoMusicDatabase.getDatabase(app).songDao()
         val locals = withContext(Dispatchers.IO) {
-            songDao.getSongsBySourceType("YOUTUBE_DOWNLOAD") + songDao.getSongsBySourceType("LOCAL_FILE")
+            songDao.getAll().filter { it.hasLocalCopy }
         }
 
         return locals.firstOrNull { local ->
@@ -342,6 +344,7 @@ internal suspend fun performYouTubeDownloadInternal(
 
                 song.trackNumber?.let { tag.setField(FieldKey.TRACK, it.toString()) }
                 song.discNumber?.let { tag.setField(FieldKey.DISC_NO, it.toString()) }
+                tag.setField(FieldKey.CUSTOM1, LibraryScanner.videoIdTagValue(videoId))
 
                 audioFile.commit()
             } catch (e: Exception) {
@@ -361,96 +364,29 @@ internal suspend fun performYouTubeDownloadInternal(
                 val settings = app.settingsManager
                 if (!settings.includeLocalMusic.value) settings.setIncludeLocalMusic(true)
 
-                val database = MonoMusicDatabase.getDatabase(app)
-                val songDao = database.songDao()
-                val albumDao = database.albumDao()
-                val artistDao = database.artistDao()
-                val playlistDao = database.playlistDao()
-
-                val existingStreamingEntity = SongEntity(
-                    id = videoId,
-                    title = song.title,
-                    artist = song.artist,
-                    album = song.album,
-                    albumId = null,
-                    discNumber = song.discNumber,
-                    trackNumber = song.trackNumber,
-                    durationMillis = song.durationMillis,
-                    sourceType = "YOUTUBE",
-                    audioUri = song.audioUri ?: videoId,
-                    artistId = null,
-                    releaseYear = null,
-                    localLastModifiedMillis = null,
-                    localFileSizeBytes = null,
+                val songDao = MonoMusicDatabase.getDatabase(app).songDao()
+                val effectiveAlbumArtist = albumArtist?.takeIf { it.isNotBlank() }
+                val artistKey = Song.artistKeyOf(song.artist, effectiveAlbumArtist)
+                songDao.upsertAll(
+                    listOf(
+                        Song(
+                            id = videoId,
+                            title = song.title,
+                            artist = song.artist,
+                            albumArtist = effectiveAlbumArtist,
+                            album = song.album,
+                            trackNumber = song.trackNumber,
+                            discNumber = song.discNumber,
+                            durationMillis = song.durationMillis,
+                            releaseYear = null,
+                            artistKey = artistKey,
+                            albumKey = Song.albumKeyOf(artistKey, song.album),
+                            localUri = contentUri.toString(),
+                            localLastModified = System.currentTimeMillis(),
+                            localSizeBytes = finishedFile.length(),
+                        ),
+                    ),
                 )
-
-                val scannedAudio = LocalMusicScanner.buildSongEntityFromFile(
-                    context = context,
-                    uri = contentUri,
-                    name = fileName,
-                    lastModified = System.currentTimeMillis(),
-                    fileSize = finishedFile.length(),
-                    existing = existingStreamingEntity,
-                )
-
-                fun String.toIdComponent(): String =
-                    trim().replace(Regex("\\s+"), " ").lowercase()
-
-                val trackArtistKey = song.artist.toIdComponent()
-                val albumKey = song.album?.toIdComponent()
-
-                val effectiveAlbumArtist = albumArtist?.takeIf { it.isNotBlank() } ?: song.artist
-                val albumArtistKey = effectiveAlbumArtist.toIdComponent()
-
-                // Group under the album artist when the song belongs to an album.
-                val artistId = if (albumKey != null) {
-                    "YOUTUBE_DOWNLOAD:$albumArtistKey"
-                } else {
-                    "YOUTUBE_DOWNLOAD:$trackArtistKey"
-                }
-
-                val albumId = if (albumKey != null) {
-                    "YOUTUBE_DOWNLOAD:$albumArtistKey:$albumKey"
-                } else null
-
-                val localSongEntity = scannedAudio.song.copy(
-                    sourceType = "YOUTUBE_DOWNLOAD",
-                    artistId = artistId,
-                    albumId = albumId
-                )
-
-                if (artistId.isNotBlank()) {
-                    artistDao.upsertAll(listOf(ArtistEntity(
-                        id = artistId,
-                        name = if (albumKey != null) effectiveAlbumArtist else song.artist,
-                        sourceType = "YOUTUBE_DOWNLOAD"
-                    )))
-                }
-
-                if (albumId != null && localSongEntity.album != null) {
-                    val albumEntityArtistId = "YOUTUBE_DOWNLOAD:$albumArtistKey"
-
-                    artistDao.upsertAll(listOf(ArtistEntity(
-                        id = albumEntityArtistId,
-                        name = effectiveAlbumArtist,
-                        sourceType = "YOUTUBE_DOWNLOAD"
-                    )))
-
-                    albumDao.upsertAll(listOf(AlbumEntity(
-                        id = albumId,
-                        name = localSongEntity.album,
-                        artist = effectiveAlbumArtist,
-                        sourceType = "YOUTUBE_DOWNLOAD",
-                        artistId = albumEntityArtistId
-                    )))
-                }
-
-                songDao.upsertAll(listOf(localSongEntity))
-                playlistDao.updateSongIdForAllPlaylists(oldSongId = videoId, newSongId = contentUri.toString())
-
-                if (localSongEntity.id != videoId) {
-                    songDao.deleteByIds(listOf(videoId))
-                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }

@@ -3,9 +3,6 @@ package com.calmapps.calmmusic
 import android.app.Application
 import android.content.Intent
 import android.provider.Settings
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
@@ -13,12 +10,11 @@ import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import com.calmapps.calmmusic.data.MonoMusicSettingsManager
 import com.calmapps.calmmusic.data.NowPlayingStorage
-import com.calmapps.calmmusic.data.PlaybackStateManager
 import okhttp3.OkHttpClient
 import java.io.File
 
 @UnstableApi
-class MonoMusic : Application(), DefaultLifecycleObserver {
+class MonoMusic : Application() {
 
     val mediaCache: SimpleCache by lazy {
         val cacheDirectory = File(this.cacheDir, "media_cache")
@@ -51,9 +47,8 @@ class MonoMusic : Application(), DefaultLifecycleObserver {
         YouTubePrecacheManager(this)
     }
 
-    val playbackStateManager: PlaybackStateManager by lazy {
-        PlaybackStateManager()
-    }
+    /** Which resolver produced the current stream URL; shown on Now Playing. */
+    val streamResolverLabel = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 
     val nowPlayingStorage: NowPlayingStorage by lazy {
         NowPlayingStorage(this)
@@ -66,7 +61,7 @@ class MonoMusic : Application(), DefaultLifecycleObserver {
         private set
 
     override fun onCreate() {
-        super<Application>.onCreate()
+        super.onCreate()
 
         settingsManager = MonoMusicSettingsManager(this)
         youTubeDownloadManager = YouTubeDownloadManager(
@@ -74,14 +69,6 @@ class MonoMusic : Application(), DefaultLifecycleObserver {
             appScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO),
         )
 
-        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
     }
 
-    override fun onStart(owner: LifecycleOwner) {
-        playbackStateManager.setAppForegroundState(true)
-    }
-
-    override fun onStop(owner: LifecycleOwner) {
-        playbackStateManager.setAppForegroundState(false)
-    }
 }

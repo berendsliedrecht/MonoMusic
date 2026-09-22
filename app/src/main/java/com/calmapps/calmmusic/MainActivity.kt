@@ -133,21 +133,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onStart() {
-        super.onStart()
-        app.playbackStateManager.setAppForegroundState(true)
-    }
-
-    override fun onStop() {
-        super.onStop()
-        app.playbackStateManager.setAppForegroundState(false)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        app.playbackStateManager.setAppForegroundState(true)
-    }
-
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -260,7 +245,7 @@ fun MonoMusic(app: MonoMusic) {
 
     val playlistsViewModel: PlaylistsViewModel = viewModel(factory = PlaylistsViewModel.factory(app))
 
-    val overlayState by app.playbackStateManager.state.collectAsState()
+    val streamResolverLabel by app.streamResolverLabel.collectAsState()
     val addToPlaylistSheetState: SheetStateMMD = rememberModalBottomSheetMMDState(
         skipPartiallyExpanded = true,
     )
@@ -430,26 +415,18 @@ fun MonoMusic(app: MonoMusic) {
         localScanDeletedMissing = null
         songsError = null
         try {
-            val result = viewModel.resyncLocalLibrary(
+            val stats = viewModel.resyncLocalLibrary(
                 includeLocal = includeLocal,
                 folders = folders,
                 onScanProgress = { progress ->
                     localScanProgress = progress.coerceIn(0f, 1f)
                 },
-                onIngestProgress = { progress ->
-                    isIngestingLocal = true
-                    localIngestProgress = progress.coerceIn(0f, 1f)
-                },
             )
 
-            songsError = result.errorMessage
-
-            result.stats?.let { stats ->
-                localScanTotalDiscovered = stats.totalDiscovered
-                localScanSkippedUnchanged = stats.skippedUnchanged
-                localScanIndexedNewOrUpdated = stats.indexedNewOrUpdated
-                localScanDeletedMissing = stats.deletedMissing
-            }
+            localScanTotalDiscovered = stats.totalFiles
+            localScanIndexedNewOrUpdated = stats.addedOrUpdated
+            localScanSkippedUnchanged = stats.totalFiles - stats.addedOrUpdated
+            localScanDeletedMissing = stats.removed
         } finally {
             isRescanningLocal = false
             isIngestingLocal = false
@@ -628,24 +605,6 @@ fun MonoMusic(app: MonoMusic) {
 
     LaunchedEffect(libraryPlaylistsState) {
         libraryPlaylists = libraryPlaylistsState
-    }
-
-    LaunchedEffect(playbackQueue) {
-        app.playbackStateManager.updateQueue(playbackQueue)
-    }
-
-    LaunchedEffect(nowPlayingSong, isPlaybackPlaying) {
-        if (nowPlayingSong != null) {
-            app.playbackStateManager.updateState(
-                songId = nowPlayingSong.id,
-                title = nowPlayingSong.title,
-                artist = nowPlayingSong.artist,
-                isPlaying = isPlaybackPlaying,
-                sourceType = nowPlayingSong.sourceType,
-            )
-        } else {
-            app.playbackStateManager.clearState()
-        }
     }
 
     LaunchedEffect(Unit) {
@@ -1527,7 +1486,7 @@ fun MonoMusic(app: MonoMusic) {
                 },
                 isInLibrary = isInLibrary,
                 sourceType = song.sourceType,
-                streamResolverLabel = if (song.sourceType == "YOUTUBE") overlayState.streamResolverLabel else null,
+                streamResolverLabel = if (song.sourceType == "YOUTUBE") streamResolverLabel else null,
             )
         }
 

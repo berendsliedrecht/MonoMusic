@@ -79,7 +79,7 @@ interface PlaylistDao {
             "WHERE pt.playlistId = :playlistId " +
             "ORDER BY pt.position"
     )
-    suspend fun getSongsForPlaylist(playlistId: String): List<SongEntity>
+    suspend fun getSongsForPlaylist(playlistId: String): List<Song>
 
     /**
      * Update all playlist_tracks rows that reference [oldSongId] so that they

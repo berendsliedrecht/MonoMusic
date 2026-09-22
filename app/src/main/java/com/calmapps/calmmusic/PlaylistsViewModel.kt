@@ -8,7 +8,6 @@ import androidx.lifecycle.viewModelScope
 import com.calmapps.calmmusic.data.MonoMusicDatabase
 import com.calmapps.calmmusic.data.PlaylistManager
 import com.calmapps.calmmusic.data.PlaylistTrackEntity
-import com.calmapps.calmmusic.data.SongEntity
 import com.calmapps.calmmusic.ui.PlaylistUiModel
 import com.calmapps.calmmusic.ui.SongUiModel
 import kotlinx.coroutines.Dispatchers
@@ -77,21 +76,7 @@ class PlaylistsViewModel(
 
     suspend fun getPlaylistSongs(playlistId: String): List<SongUiModel> {
         return withContext(Dispatchers.IO) {
-            val entities = playlistDao.getSongsForPlaylist(playlistId)
-            entities.map { entity ->
-                SongUiModel(
-                    id = entity.id,
-                    title = entity.title,
-                    artist = entity.artist,
-                    durationText = formatDurationMillis(entity.durationMillis),
-                    durationMillis = entity.durationMillis,
-                    trackNumber = entity.trackNumber,
-                    discNumber = entity.discNumber,
-                    sourceType = entity.sourceType,
-                    audioUri = entity.audioUri,
-                    album = entity.album,
-                )
-            }
+            playlistDao.getSongsForPlaylist(playlistId).map { it.toUiModel() }
         }
     }
 
@@ -120,22 +105,7 @@ class PlaylistsViewModel(
             val existingEntities = playlistDao.getSongsForPlaylist(playlistId)
             val existingIds = existingEntities.map { it.id }.toSet()
 
-            // For now, build SongModels from DB directly.
-            val allSongs = songDao.getAllSongs()
-            val currentSongs = allSongs.map { entity ->
-                SongUiModel(
-                    id = entity.id,
-                    title = entity.title,
-                    artist = entity.artist,
-                    durationText = formatDurationMillis(entity.durationMillis),
-                    durationMillis = entity.durationMillis,
-                    trackNumber = entity.trackNumber,
-                    discNumber = entity.discNumber,
-                    sourceType = entity.sourceType,
-                    audioUri = entity.audioUri,
-                    album = entity.album,
-                )
-            }
+            val currentSongs = songDao.getAll().map { it.toUiModel() }
 
             val songsToAdd = currentSongs.filter { it.id in selectedSongIds && it.id !in existingIds }
 
@@ -146,24 +116,6 @@ class PlaylistsViewModel(
                     allSelectedAlreadyPresent = true,
                 )
             } else {
-                val songEntities = songsToAdd.map { song ->
-                    SongEntity(
-                        id = song.id,
-                        title = song.title,
-                        artist = song.artist,
-                        album = null,
-                        albumId = null,
-                        discNumber = null,
-                        trackNumber = song.trackNumber,
-                        durationMillis = song.durationMillis,
-                        sourceType = song.sourceType,
-                        audioUri = song.audioUri ?: song.id,
-                        artistId = null,
-                        releaseYear = null,
-                    )
-                }
-                songDao.upsertAll(songEntities)
-
                 val startingPosition = existingEntities.size
                 val tracks = songsToAdd.mapIndexed { index, song ->
                     PlaylistTrackEntity(
@@ -224,21 +176,9 @@ class PlaylistsViewModel(
 
             // Optionally add a single song to the playlist (used when creating from Now Playing).
             params.songToAdd?.let { songToAdd ->
-                val songEntity = SongEntity(
-                    id = songToAdd.id,
-                    title = songToAdd.title,
-                    artist = songToAdd.artist,
-                    album = null,
-                    albumId = null,
-                    discNumber = null,
-                    trackNumber = songToAdd.trackNumber,
-                    durationMillis = songToAdd.durationMillis,
-                    sourceType = songToAdd.sourceType,
-                    audioUri = songToAdd.audioUri ?: songToAdd.id,
-                    artistId = null,
-                    releaseYear = null,
-                )
-                songDao.upsertAll(listOf(songEntity))
+                if (songDao.getById(songToAdd.id) == null) {
+                    songDao.upsertAll(listOf(songToAdd.toSkeletonSong()))
+                }
                 val existing = playlistDao.getSongsForPlaylist(playlistId)
                 val position = existing.size
                 val track = PlaylistTrackEntity(
