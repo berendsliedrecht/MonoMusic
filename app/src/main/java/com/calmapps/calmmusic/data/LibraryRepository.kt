@@ -44,15 +44,35 @@ class LibraryRepository(
             onProgress = onProgress,
         )
 
+        // Reconcile each scanned file against the row already backed by the
+        // same file, so identity survives events that change the content hash
+        // (tag edits) and legacy uri-keyed rows merge away instead of lingering.
+        val existingByUri = existing.filter { it.localUri != null }.associateBy { it.localUri!! }
+        fun isVideoId(id: String) = !id.startsWith(Song.LOCAL_ID_PREFIX) &&
+            !id.startsWith("content://") && !id.startsWith("file://")
+
+        val reconciled = scanned.map { song ->
+            val old = song.localUri?.let(existingByUri::get)
+            when {
+                old == null || old.id == song.id -> song
+                // The file carries a video id tag: adopt it, playlists follow.
+                isVideoId(song.id) -> song.also { relinkPlaylists(old.id, song.id) }
+                // The row has a real video id the file's tags lack: keep it.
+                isVideoId(old.id) -> song.copy(id = old.id)
+                // Hash changed (tag edit) or legacy uri id: move to the new id.
+                else -> song.also { relinkPlaylists(old.id, song.id) }
+            }
+        }
+
         val existingById = existing.associateBy { it.id }
-        val changed = scanned.filter { it != existingById[it.id] }
+        val changed = reconciled.filter { it != existingById[it.id] }
         songDao.upsertAll(changed)
 
-        repairLegacyIds(existing, scanned)
+        repairLegacyIds(existing, reconciled)
         repairMissingKeys()
 
         // Prune local songs whose file vanished; stream-only rows stay.
-        val presentIds = scanned.mapTo(mutableSetOf()) { it.id }
+        val presentIds = reconciled.mapTo(mutableSetOf()) { it.id }
         val vanished = existing.filter { it.localUri != null && it.id !in presentIds }
         val (localOnly, streamBacked) = vanished.partition { !it.isYouTube }
         localOnly.map { it.id }.chunked(500).forEach { songDao.deleteByIds(it) }
@@ -92,10 +112,15 @@ class LibraryRepository(
             val target = scannedByUri[old.localUri]
                 ?: old.localUri?.let { baseNameOf(it)?.let(scannedByName::get) }
             if (target == null || target.id == old.id) continue
-            playlistDao.deleteTracksSupersededBy(old.id, target.id)
-            playlistDao.updateSongIdForAllPlaylists(old.id, target.id)
-            songDao.deleteByIds(listOf(old.id))
+            relinkPlaylists(old.id, target.id)
         }
+    }
+
+    /** Moves playlist rows from [oldId] to [newId] and drops the old song row. */
+    private suspend fun relinkPlaylists(oldId: String, newId: String) {
+        playlistDao.deleteTracksSupersededBy(oldId, newId)
+        playlistDao.updateSongIdForAllPlaylists(oldId, newId)
+        songDao.deleteByIds(listOf(oldId))
     }
 
     /** Recomputes grouping keys for rows that lack them (post-migration). */
