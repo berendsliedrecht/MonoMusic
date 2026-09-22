@@ -10,7 +10,8 @@ android {
 
     defaultConfig {
         applicationId = "com.calmapps.calmmusic"
-        minSdk = 28
+        // MediaStore RELATIVE_PATH/IS_PENDING (download storage) need API 29.
+        minSdk = 29
         targetSdk = 35
         versionCode = 13
         versionName = "1.2.1"

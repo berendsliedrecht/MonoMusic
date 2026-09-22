@@ -1,7 +1,6 @@
 package com.calmapps.calmmusic
 
 import android.content.Context
-import android.os.Environment
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
@@ -26,7 +25,6 @@ import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.TagOptionSingleton
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import java.util.UUID
@@ -72,14 +70,6 @@ class YouTubeDownloadManager(
 
         val job = appScope.launch {
             val context = app.applicationContext
-            val musicDir = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC)
-
-            if (musicDir == null) {
-                updateDownload(id) { it.copy(state = YouTubeDownloadStatus.State.FAILED, errorMessage = "Storage inaccessible") }
-                return@launch
-            }
-
-            if (!musicDir.exists()) musicDir.mkdirs()
 
             val alreadyDownloaded = try {
                 findExistingLocalCopy(song) != null
@@ -99,7 +89,6 @@ class YouTubeDownloadManager(
                         app = app,
                         requestedSong = song,
                         albumArtist = albumArtist,
-                        targetDir = musicDir,
                         context = context,
                         client = client,
                         onProgress = { progress ->
@@ -191,7 +180,6 @@ internal suspend fun performYouTubeDownloadInternal(
     app: MonoMusic,
     requestedSong: com.calmapps.calmmusic.ui.SongUiModel,
     albumArtist: String?,
-    targetDir: File,
     context: Context,
     client: OkHttpClient,
     onProgress: (Float) -> Unit,
@@ -238,11 +226,6 @@ internal suspend fun performYouTubeDownloadInternal(
         val safeArtist = song.artist.takeIf { it.isNotBlank() }
             ?.replace(Regex("""[\\\\/:*?\"<>|]"""), "_")
         val fileName = if (safeArtist != null) "$safeTitle - $safeArtist.m4a" else "$safeTitle.m4a"
-        val targetFile = File(targetDir, fileName)
-
-        if (targetFile.exists()) {
-            targetFile.delete()
-        }
 
         tmpFile = withContext(Dispatchers.IO) {
             File.createTempFile("yt-$videoId-", ".m4a", context.cacheDir)
@@ -344,17 +327,9 @@ internal suspend fun performYouTubeDownloadInternal(
         if (!downloadSuccess) return false
 
         withContext(Dispatchers.IO) {
-            FileInputStream(tmpFile).use { input ->
-                FileOutputStream(targetFile).use { output ->
-                    input.copyTo(output)
-                }
-            }
-        }
-
-        withContext(Dispatchers.IO) {
             try {
                 TagOptionSingleton.getInstance().isAndroid = true
-                val audioFile = AudioFileIO.read(targetFile)
+                val audioFile = AudioFileIO.read(tmpFile)
                 val tag = audioFile.tagAndConvertOrCreateAndSetDefault
 
                 tag.setField(FieldKey.TITLE, song.title)
@@ -374,6 +349,11 @@ internal suspend fun performYouTubeDownloadInternal(
             }
         }
 
+        val finishedFile = tmpFile ?: return false
+        val contentUri = withContext(Dispatchers.IO) {
+            com.calmapps.calmmusic.data.MediaStoreSongs.insert(context, finishedFile, fileName)
+        } ?: throw IllegalStateException("Could not save the song to storage")
+
         onProgress(1f)
 
         withContext(Dispatchers.IO) {
@@ -387,7 +367,6 @@ internal suspend fun performYouTubeDownloadInternal(
                 val artistDao = database.artistDao()
                 val playlistDao = database.playlistDao()
 
-                val fileUri = android.net.Uri.fromFile(targetFile)
                 val existingStreamingEntity = SongEntity(
                     id = videoId,
                     title = song.title,
@@ -407,10 +386,10 @@ internal suspend fun performYouTubeDownloadInternal(
 
                 val scannedAudio = LocalMusicScanner.buildSongEntityFromFile(
                     context = context,
-                    uri = fileUri,
-                    name = targetFile.name,
-                    lastModified = targetFile.lastModified(),
-                    fileSize = targetFile.length(),
+                    uri = contentUri,
+                    name = fileName,
+                    lastModified = System.currentTimeMillis(),
+                    fileSize = finishedFile.length(),
                     existing = existingStreamingEntity,
                 )
 
@@ -467,7 +446,7 @@ internal suspend fun performYouTubeDownloadInternal(
                 }
 
                 songDao.upsertAll(listOf(localSongEntity))
-                playlistDao.updateSongIdForAllPlaylists(oldSongId = videoId, newSongId = fileUri.toString())
+                playlistDao.updateSongIdForAllPlaylists(oldSongId = videoId, newSongId = contentUri.toString())
 
                 if (localSongEntity.id != videoId) {
                     songDao.deleteByIds(listOf(videoId))

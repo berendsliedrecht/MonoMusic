@@ -1,11 +1,14 @@
 package com.calmapps.calmmusic
 
+import android.Manifest
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import com.calmapps.calmmusic.data.MediaStoreSongs
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -225,6 +228,10 @@ fun MonoMusic(app: MonoMusic) {
     val completeAlbumsWithYouTube = completeAlbumsWithYouTubeState.value
     var hasOverlayPermission by rememberSaveable { mutableStateOf(Settings.canDrawOverlays(context)) }
     var hasBatteryOptimizationExemption by rememberSaveable { mutableStateOf(false) }
+    var hasStorageAccess by rememberSaveable { mutableStateOf(MediaStoreSongs.hasReadPermission(context)) }
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> hasStorageAccess = granted }
     var hasCompletedPermissionsOnboarding by rememberSaveable {
         mutableStateOf(settingsManager.hasCompletedPermissionsOnboarding())
     }
@@ -244,6 +251,7 @@ fun MonoMusic(app: MonoMusic) {
             if (event == Lifecycle.Event.ON_RESUME) {
                 hasOverlayPermission = Settings.canDrawOverlays(context)
                 updateBatteryOptimizationState()
+                hasStorageAccess = MediaStoreSongs.hasReadPermission(context)
 
                 val intent = activity?.intent
                 val fromRadio = intent?.getBooleanExtra("FROM_RADIO_TUNER", false) ?: false
@@ -770,6 +778,7 @@ fun MonoMusic(app: MonoMusic) {
         PermissionsOnboardingScreen(
             hasOverlayPermission = hasOverlayPermission,
             hasBatteryOptimizationExemption = hasBatteryOptimizationExemption,
+            hasStorageAccess = hasStorageAccess,
             onRequestOverlayPermissionClick = {
                 if (!Settings.canDrawOverlays(context)) {
                     val intent = Intent(
@@ -792,6 +801,15 @@ fun MonoMusic(app: MonoMusic) {
                     }
                     context.startActivity(intent)
                 }
+            },
+            onRequestStorageAccessClick = {
+                storagePermissionLauncher.launch(
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        Manifest.permission.READ_MEDIA_AUDIO
+                    } else {
+                        Manifest.permission.READ_EXTERNAL_STORAGE
+                    },
+                )
             },
             onContinueClick = {
                 hasCompletedPermissionsOnboarding = true

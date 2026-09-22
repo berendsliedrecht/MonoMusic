@@ -22,7 +22,7 @@ data class ScannedLocalAudio(
 )
 
 object LocalMusicScanner {
-    private val AUDIO_EXTENSIONS = setOf("mp3", "m4a", "aac", "flac", "wav", "ogg", "mp4", "opus")
+    val AUDIO_EXTENSIONS = setOf("mp3", "m4a", "aac", "flac", "wav", "ogg", "mp4", "opus")
 
     /**
      * Scan the given folders for audio files.
@@ -66,6 +66,9 @@ object LocalMusicScanner {
 
                 for (child in children) {
                     if (child.isDirectory) {
+                        // Downloads are indexed separately; scanning them here would
+                        // duplicate every downloaded song in the library.
+                        if (child.name == MediaStoreSongs.SUBFOLDER) continue
                         stack.add(child)
                     } else if (child.isFile) {
                         val name = child.name ?: continue

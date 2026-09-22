@@ -90,6 +90,16 @@ interface PlaylistDao {
     suspend fun updateSongIdForAllPlaylists(oldSongId: String, newSongId: String)
 
     /**
+     * Drop [oldSongId] rows in playlists that already contain [newSongId], so a
+     * following [updateSongIdForAllPlaylists] cannot violate the primary key.
+     */
+    @Query(
+        "DELETE FROM playlist_tracks WHERE songId = :oldSongId " +
+            "AND playlistId IN (SELECT playlistId FROM playlist_tracks WHERE songId = :newSongId)"
+    )
+    suspend fun deleteTracksSupersededBy(oldSongId: String, newSongId: String)
+
+    /**
      * Delete all playlist_tracks entries that reference the given song ID,
      * regardless of playlist. Used when permanently deleting a local file
      * from disk and library so that no playlists keep dangling references.

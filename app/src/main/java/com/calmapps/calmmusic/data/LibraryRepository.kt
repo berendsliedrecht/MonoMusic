@@ -8,6 +8,7 @@ import com.calmapps.calmmusic.ui.ArtistUiModel
 import com.calmapps.calmmusic.ui.SongUiModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
  * Repository responsible for performing library-related data work against the
@@ -21,6 +22,7 @@ class LibraryRepository(
     private val songDao by lazy { database.songDao() }
     private val albumDao by lazy { database.albumDao() }
     private val artistDao by lazy { database.artistDao() }
+    private val playlistDao by lazy { database.playlistDao() }
 
     data class LocalResyncStats(
         val totalDiscovered: Int,
@@ -301,27 +303,80 @@ class LibraryRepository(
         }
     }
 
+    /**
+     * Move downloads out of the legacy app-specific dirs into MediaStore. Runs on
+     * every launch but is a no-op once the dirs are empty. Needs no permission:
+     * the app may read its own dirs and insert its own media freely.
+     */
+    private fun migrateAppDirDownloads() {
+        val appDirs = app.getExternalFilesDirs(Environment.DIRECTORY_MUSIC).filterNotNull()
+        // Skip files already published (resume after an interrupted migration).
+        val published = MediaStoreSongs.queryAll(app)
+            .mapTo(mutableSetOf()) { it.displayName to it.sizeBytes }
+        for (dir in appDirs) {
+            val files = dir.listFiles()
+                ?.filter { it.isFile && it.extension.lowercase() in LocalMusicScanner.AUDIO_EXTENSIONS }
+                .orEmpty()
+            for (file in files) {
+                if ((file.name to file.length()) !in published) {
+                    MediaStoreSongs.insert(app, file, file.name) ?: continue
+                }
+                file.delete()
+            }
+        }
+    }
+
     suspend fun ingestAppDownloadsIfMissing(): Int {
         return withContext(Dispatchers.IO) {
-            val downloadsDir = app.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: return@withContext 0
-            val files = downloadsDir.listFiles()?.filter { it.isFile } ?: emptyList()
+            migrateAppDirDownloads()
+
+            val items = MediaStoreSongs.queryAll(app)
+
+            // Downloads were keyed by file:// URIs before the MediaStore migration, so
+            // every file:// row is legacy: point it at its published MediaStore item by
+            // file name, keeping playlists intact. When the item already has its own
+            // row (ingested by an earlier run), merge into that row instead.
+            val existing = songDao.getSongsBySourceType("YOUTUBE_DOWNLOAD")
+            val rowsByUri = existing.associateBy { it.audioUri }
+            val itemsByName = items.associateBy { it.displayName }
+            for (song in existing) {
+                val uri = Uri.parse(song.audioUri)
+                if (uri.scheme != "file") continue
+                val name = uri.path?.let(::File)?.name ?: continue
+                val item = itemsByName[name] ?: continue
+                val newUri = item.uri.toString()
+                if (rowsByUri[newUri] == null) {
+                    songDao.upsertAll(
+                        listOf(
+                            song.copy(
+                                id = newUri,
+                                audioUri = newUri,
+                                localLastModifiedMillis = item.lastModifiedMillis,
+                                localFileSizeBytes = item.sizeBytes,
+                            ),
+                        ),
+                    )
+                }
+                playlistDao.deleteTracksSupersededBy(song.id, newUri)
+                playlistDao.updateSongIdForAllPlaylists(song.id, newUri)
+                songDao.deleteByIds(listOf(song.id))
+            }
 
             val existingDownloads = songDao.getSongsBySourceType("YOUTUBE_DOWNLOAD")
             val existingByUri = existingDownloads.associateBy { it.audioUri }
 
             val newSongs = mutableListOf<SongEntity>()
 
-            for (file in files) {
-                val uri = Uri.fromFile(file)
-                val uriString = uri.toString()
+            for (item in items) {
+                val uriString = item.uri.toString()
                 if (existingByUri.containsKey(uriString)) continue
 
                 val scanned = LocalMusicScanner.buildSongEntityFromFile(
                     context = app,
-                    uri = uri,
-                    name = file.name,
-                    lastModified = file.lastModified(),
-                    fileSize = file.length(),
+                    uri = item.uri,
+                    name = item.displayName,
+                    lastModified = item.lastModifiedMillis,
+                    fileSize = item.sizeBytes,
                     existing = null,
                 )
                 newSongs += scanned.song.copy(sourceType = "YOUTUBE_DOWNLOAD")

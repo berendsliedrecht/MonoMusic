@@ -30,8 +30,10 @@ import com.mudita.mmd.components.text.TextMMD
 fun PermissionsOnboardingScreen(
     hasOverlayPermission: Boolean,
     hasBatteryOptimizationExemption: Boolean,
+    hasStorageAccess: Boolean,
     onRequestOverlayPermissionClick: () -> Unit,
     onRequestBatteryOptimizationClick: () -> Unit,
+    onRequestStorageAccessClick: () -> Unit,
     onContinueClick: () -> Unit,
     onSkipClick: () -> Unit,
 ) {
@@ -68,7 +70,11 @@ fun PermissionsOnboardingScreen(
                             "\n" +
                             "Most phones now have smart battery optimizations which can prevent " +
                             "MonoMusic from continuing to run in the background when not actively playing " +
-                            "a song. This will cause the overlay to disappear.",
+                            "a song. This will cause the overlay to disappear.\n" +
+                            "\n" +
+                            "Downloaded songs are saved to Music/MonoMusic on your SD card or phone " +
+                            "storage. Reading songs added there by other apps or a computer " +
+                            "requires the audio permission.",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Normal,
                     textAlign = TextAlign.Center,
@@ -120,7 +126,27 @@ fun PermissionsOnboardingScreen(
                     )
                 }
 
-                if (hasOverlayPermission && hasBatteryOptimizationExemption) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedButtonMMD(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onRequestStorageAccessClick,
+                    enabled = !hasStorageAccess,
+                    contentPadding = PaddingValues(12.dp),
+                ) {
+                    TextMMD(
+                        text = if (hasStorageAccess) {
+                            "Music access already allowed"
+                        } else {
+                            "Allow access to your music"
+                        },
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+
+                if (hasOverlayPermission && hasBatteryOptimizationExemption && hasStorageAccess) {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     OutlinedButtonMMD(
