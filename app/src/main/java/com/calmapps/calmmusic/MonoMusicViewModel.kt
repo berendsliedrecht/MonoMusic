@@ -427,8 +427,43 @@ class MonoMusicViewModel(
             _libraryAlbums.value = deriveAlbums(songs)
             _libraryArtists.value = deriveArtists(songs)
             _libraryRefreshTrigger.value += 1
+            refreshQueueFromLibrary()
         } catch (_: Exception) {
         }
+    }
+
+    /**
+     * Re-points the in-memory queue at current library rows: repairs and the
+     * identify pass can change a song's id and metadata under a queue that was
+     * restored earlier. Falls back to the file uri when the id moved.
+     */
+    private fun refreshQueueFromLibrary() {
+        val state = _playbackState.value
+        if (state.playbackQueue.isEmpty()) return
+        val byId = _librarySongs.value.associateBy { it.id }
+        val byUri = _librarySongs.value.mapNotNull { song ->
+            song.audioUri?.let { it to song }
+        }.toMap()
+
+        var changedAny = false
+        val newQueue = state.playbackQueue.map { entry ->
+            val fresh = byId[entry.id] ?: entry.audioUri?.let(byUri::get)
+            if (fresh != null && fresh != entry) {
+                changedAny = true
+                fresh
+            } else {
+                entry
+            }
+        }
+        if (!changedAny) return
+
+        val current = state.playbackQueueIndex?.let { newQueue.getOrNull(it) }
+        _playbackState.value = state.copy(
+            playbackQueue = newQueue,
+            currentSongId = current?.id ?: state.currentSongId,
+            nowPlayingSong = current ?: state.nowPlayingSong,
+        )
+        persistPlaybackSnapshot()
     }
 
     private fun deriveAlbums(songs: List<Song>): List<AlbumUiModel> =
