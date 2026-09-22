@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 /**
  * Local playlist definition. These playlists are stored only in the app's
- * database but can reference both local files and Apple Music songs via
+ * database but can reference both local files and streaming songs via
  * SongEntity IDs.
  */
 @Entity(tableName = "playlists")

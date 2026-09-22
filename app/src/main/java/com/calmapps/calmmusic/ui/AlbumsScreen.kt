@@ -34,7 +34,6 @@ data class AlbumUiModel(
 
 @Composable
 fun AlbumsScreen(
-    isAuthenticated: Boolean,
     albums: List<AlbumUiModel>,
     isLoading: Boolean,
     errorMessage: String?,
@@ -86,7 +85,7 @@ fun AlbumsScreen(
                     if (!hasAnySongs) {
                         LibraryOnboardingEmptyState(
                             title = "No albums yet",
-                            body = "Connect Apple Music or choose local folders in Settings to start building your library.",
+                            body = "Download songs from YouTube Music or choose local folders in Settings to start building your library.",
                             onOpenStreamingSettingsClick = onOpenStreamingSettingsClick,
                             onOpenLocalSettingsClick = onOpenLocalSettingsClick,
                         )

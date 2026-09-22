@@ -9,7 +9,7 @@ import androidx.room.Query
 import androidx.room.Index
 
 /**
- * Unified song representation used for both Apple Music and local files.
+ * Unified song representation used for both streaming and local files.
  */
 @Entity(
     tableName = "songs",

@@ -25,7 +25,7 @@ data class SongUiModel(
     val durationMillis: Long? = null,
     val discNumber: Int? = null,
     val trackNumber: Int? = null,
-    val sourceType: String = "APPLE_MUSIC",
+    val sourceType: String = "YOUTUBE",
     val audioUri: String? = null,
     val album: String? = null,
 )
@@ -87,7 +87,7 @@ fun SongsScreen(
                 ) {
                     LibraryOnboardingEmptyState(
                         title = "No songs yet",
-                        body = "Connect Apple Music or choose local folders in Settings to start building your library.",
+                        body = "Download songs from YouTube Music or choose local folders in Settings to start building your library.",
                         onOpenStreamingSettingsClick = onOpenStreamingSettingsClick,
                         onOpenLocalSettingsClick = onOpenLocalSettingsClick,
                     )

@@ -13,7 +13,6 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
-import com.apple.android.music.playback.model.PlaybackRepeatMode
 import com.calmapps.calmmusic.data.AlbumEntity
 import com.calmapps.calmmusic.data.ArtistEntity
 import com.calmapps.calmmusic.data.ArtistWithCounts
@@ -586,7 +585,6 @@ class MonoMusicViewModel(
             val index = state.playbackQueueIndex
 
             val needsInit = when (song.sourceType) {
-                "APPLE_MUSIC" -> !playbackCoordinator.appleQueueInitialized
                 "LOCAL_FILE", "YOUTUBE", "YOUTUBE_DOWNLOAD" -> !playbackCoordinator.localQueueInitialized
                 else -> false
             }
@@ -603,17 +601,9 @@ class MonoMusicViewModel(
         }
 
         if (currentlyPlaying) {
-            if (song.sourceType == "APPLE_MUSIC") {
-                app.appleMusicPlayer.pause()
-            } else {
-                localController?.pause()
-            }
+            localController?.pause()
         } else {
-            if (song.sourceType == "APPLE_MUSIC") {
-                app.appleMusicPlayer.resume()
-            } else {
-                localController?.playWhenReady = true
-            }
+            localController?.playWhenReady = true
         }
 
         _playbackState.value = state.copy(isPlaybackPlaying = !currentlyPlaying)
@@ -675,29 +665,7 @@ class MonoMusicViewModel(
         _playbackState.value = newState
         persistPlaybackSnapshot(newState)
 
-        if (song.sourceType == "APPLE_MUSIC") {
-            val appleIndex = playbackCoordinator.appleIndexByGlobal?.let { map ->
-                if (startIndex in map.indices) map[startIndex] else -1
-            }?.takeIf { it >= 0 }
-
-            if (playbackCoordinator.appleCatalogIdsForQueue.isNotEmpty() && appleIndex != null) {
-                app.appleMusicPlayer.playQueueOfSongs(
-                    playbackCoordinator.appleCatalogIdsForQueue,
-                    appleIndex
-                )
-                playbackCoordinator.appleQueueInitialized = true
-            } else {
-                app.appleMusicPlayer.playSongById(song.audioUri ?: song.id)
-                playbackCoordinator.appleQueueInitialized = false
-            }
-
-            val repeat = when (repeatMode) {
-                RepeatMode.OFF -> PlaybackRepeatMode.REPEAT_MODE_OFF
-                RepeatMode.QUEUE -> PlaybackRepeatMode.REPEAT_MODE_ALL
-                RepeatMode.ONE -> PlaybackRepeatMode.REPEAT_MODE_ONE
-            }
-            app.mediaPlayerController.setRepeatMode(repeat)
-        } else if (song.sourceType == "LOCAL_FILE" || song.sourceType == "YOUTUBE_DOWNLOAD") {
+        if (song.sourceType == "LOCAL_FILE" || song.sourceType == "YOUTUBE_DOWNLOAD") {
             val controller = localController
             if (controller != null && playbackCoordinator.localMediaItemsForQueue.isNotEmpty()) {
 
@@ -936,41 +904,6 @@ class MonoMusicViewModel(
                     else -> Player.REPEAT_MODE_OFF // Always OFF for Queue/Off
                 }
             }
-        } else if (song?.sourceType == "APPLE_MUSIC") {
-            val repeat = when (newRepeat) {
-                RepeatMode.OFF -> PlaybackRepeatMode.REPEAT_MODE_OFF
-                RepeatMode.QUEUE -> PlaybackRepeatMode.REPEAT_MODE_ALL
-                RepeatMode.ONE -> PlaybackRepeatMode.REPEAT_MODE_ONE
-            }
-            app.mediaPlayerController.setRepeatMode(repeat)
-        }
-    }
-
-    fun updateFromAppleQueueIndex(appleQueueIndex: Int?) {
-        if (appleQueueIndex == null || appleQueueIndex < 0) {
-            _playbackState.value = _playbackState.value.copy(isPlaybackPlaying = false)
-            persistPlaybackSnapshot()
-            return
-        }
-        val state = _playbackState.value
-        val queue = state.playbackQueue
-        if (queue.isEmpty()) return
-
-        val appleIndexed = queue
-            .mapIndexedNotNull { idx, song ->
-                if (song.sourceType == "APPLE_MUSIC") idx to song else null
-            }
-        if (appleQueueIndex in appleIndexed.indices) {
-            val (globalIndex, song) = appleIndexed[appleQueueIndex]
-            _playbackState.value = state.copy(
-                playbackQueueIndex = globalIndex,
-                currentSongId = song.id,
-                nowPlayingSong = song,
-                nowPlayingDurationMs = song.durationMillis ?: state.nowPlayingDurationMs,
-                nowPlayingPositionMs = 0L,
-                isPlaybackPlaying = true,
-            )
-            persistPlaybackSnapshot()
         }
     }
 

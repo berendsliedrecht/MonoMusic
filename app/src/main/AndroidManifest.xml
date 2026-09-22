@@ -75,10 +75,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name="com.apple.android.sdk.authentication.SDKUriHandlerActivity"
-            android:exported="true"
-            tools:node="merge" />
     </application>
 
     <queries>

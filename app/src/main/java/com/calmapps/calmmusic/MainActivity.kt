@@ -83,7 +83,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.calmapps.calmmusic.data.StreamingProvider
 import com.calmapps.calmmusic.overlay.SystemOverlayService
 import com.calmapps.calmmusic.ui.AlbumDetailsScreen
 import com.calmapps.calmmusic.ui.AlbumUiModel
@@ -150,22 +149,9 @@ class MainActivity : ComponentActivity() {
         app.playbackStateManager.setAppForegroundState(true)
     }
 
-    @Deprecated("Use Activity Result API")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        if (requestCode == REQUEST_CODE_APPLE_MUSIC_AUTH && resultCode == RESULT_OK) {
-            app.appleMusicAuthManager.handleAuthResult(data)
-        }
-    }
-
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-    }
-
-    companion object {
-        internal const val REQUEST_CODE_APPLE_MUSIC_AUTH = 1001
     }
 }
 
@@ -302,18 +288,6 @@ fun MonoMusic(app: MonoMusic) {
     )
 
     val canNavigateBack = navController.previousBackStackEntry != null
-    val streamingProviderState = settingsManager.streamingProvider.collectAsState()
-    val streamingProvider = streamingProviderState.value
-    var isAuthenticated by remember { mutableStateOf(app.tokenProvider.getUserToken().isNotEmpty()) }
-
-    val isStreamingAvailable by remember(streamingProvider, isAuthenticated) {
-        derivedStateOf {
-            when (streamingProvider) {
-                StreamingProvider.APPLE_MUSIC -> isAuthenticated
-                StreamingProvider.YOUTUBE -> true
-            }
-        }
-    }
 
     val librarySongs by viewModel.librarySongs.collectAsState()
     val librarySongIds = remember(librarySongs) {
@@ -391,11 +365,6 @@ fun MonoMusic(app: MonoMusic) {
 
     var settingsSelectedTab by remember { mutableStateOf(0) }
 
-    fun startAppleMusicAuth(activity: Activity) {
-        val intent = app.appleMusicAuthManager.buildSignInIntent()
-        activity.startActivityForResult(intent, MainActivity.REQUEST_CODE_APPLE_MUSIC_AUTH)
-    }
-
     fun performSearch() {
         if (searchQuery.isBlank()) return
 
@@ -406,7 +375,6 @@ fun MonoMusic(app: MonoMusic) {
                     (song.album?.contains(query, ignoreCase = true) == true)
         }
 
-        if (!isStreamingAvailable) return
         if (isSearching) return
 
         searchScope.launch {
@@ -414,31 +382,7 @@ fun MonoMusic(app: MonoMusic) {
             searchError = null
             searchSelectedTab = 0
             try {
-                when (streamingProvider) {
-                    StreamingProvider.APPLE_MUSIC -> {
-                        val result = app.appleMusicApiClient.searchAll(
-                            term = searchQuery,
-                            storefront = "us",
-                            songLimit = 25,
-                            playlistLimit = 25,
-                        )
-                        searchSongs = result.songs.map {
-                            SongUiModel(
-                                id = it.id,
-                                title = it.name,
-                                artist = it.artistName,
-                                durationText = null,
-                                durationMillis = null,
-                                trackNumber = null,
-                                sourceType = "APPLE_MUSIC",
-                                audioUri = it.id,
-                                album = it.albumName,
-                            )
-                        }
-                        searchAlbums = emptyList()
-                    }
-                    StreamingProvider.YOUTUBE -> {
-                        val songResults = app.youTubeInnertubeClient.searchSongs(
+                val songResults = app.youTubeInnertubeClient.searchSongs(
                             query = searchQuery,
                             limit = 25,
                         )
@@ -469,10 +413,8 @@ fun MonoMusic(app: MonoMusic) {
                             )
                         }
 
-                        val topVideoIds = songResults.take(5).map { it.videoId }
-                        app.youTubePrecacheManager.precacheSearchResults(topVideoIds)
-                    }
-                }
+                val topVideoIds = songResults.take(5).map { it.videoId }
+                app.youTubePrecacheManager.precacheSearchResults(topVideoIds)
             } catch (e: Exception) {
                 searchError = e.message ?: "Search failed"
                 searchSongs = emptyList()
@@ -768,12 +710,6 @@ fun MonoMusic(app: MonoMusic) {
         }
     }
 
-    LaunchedEffect(Unit) {
-        app.appleMusicPlayer.setOnCurrentItemChangedListener { appleQueueIndex ->
-            viewModel.updateFromAppleQueueIndex(appleQueueIndex)
-        }
-    }
-
     if (shouldShowPermissionsOnboarding) {
         PermissionsOnboardingScreen(
             hasOverlayPermission = hasOverlayPermission,
@@ -823,7 +759,7 @@ fun MonoMusic(app: MonoMusic) {
         return
     }
 
-    LaunchedEffect(isAuthenticated) {
+    LaunchedEffect(Unit) {
         songsError = null
         albumsError = null
     }
@@ -1029,8 +965,7 @@ fun MonoMusic(app: MonoMusic) {
                         playlistEditSelectionCount = playlistEditSelectionCount,
                         playlistDetailsSelectionCount = playlistDetailsSelectionCount,
                         isPlaylistDetailsMenuExpanded = isPlaylistDetailsMenuExpanded,
-                        canDownloadSelectedAlbum = streamingProvider == StreamingProvider.YOUTUBE &&
-                                selectedAlbum?.sourceType == "YOUTUBE",
+                        canDownloadSelectedAlbum = selectedAlbum?.sourceType == "YOUTUBE",
                         canRenameSelectedAlbum = selectedAlbum?.sourceType == "LOCAL_FILE" ||
                                 selectedAlbum?.sourceType == "YOUTUBE_DOWNLOAD",
                         hasNowPlaying = nowPlayingSong != null,
@@ -1265,7 +1200,6 @@ fun MonoMusic(app: MonoMusic) {
                 }
                 composable(Screen.Albums.route) {
                     AlbumsScreen(
-                        isAuthenticated = isAuthenticated,
                         albums = libraryAlbums,
                         isLoading = isLoadingAlbums,
                         errorMessage = albumsError,
@@ -1283,7 +1217,6 @@ fun MonoMusic(app: MonoMusic) {
                 }
                 composable(Screen.Search.route) {
                     SearchScreen(
-                        isAuthenticated = isStreamingAvailable,
                         isSearching = isSearching,
                         errorMessage = searchError,
                         songs = searchSongs,
@@ -1297,24 +1230,10 @@ fun MonoMusic(app: MonoMusic) {
                                 val startIndex = if (index >= 0) index else 0
                                 startPlaybackFromQueue(searchLocalSongs, startIndex)
                             } else {
-                                when (streamingProvider) {
-                                    StreamingProvider.APPLE_MUSIC -> {
-                                        viewModel.startPlaybackFromQueue(
-                                            queue = listOf(song),
-                                            startIndex = 0,
-                                            isNewQueue = true,
-                                            localController = localMediaController,
-                                        )
-                                        showNowPlaying = true
-                                    }
-
-                                    StreamingProvider.YOUTUBE -> {
-                                        val songs = searchSongs
-                                        val index = songs.indexOfFirst { it.id == song.id }
-                                        val startIndex = if (index >= 0) index else 0
-                                        startPlaybackFromQueue(songs, startIndex)
-                                    }
-                                }
+                                val songs = searchSongs
+                                val index = songs.indexOfFirst { it.id == song.id }
+                                val startIndex = if (index >= 0) index else 0
+                                startPlaybackFromQueue(songs, startIndex)
                             }
                         },
                         onAlbumClick = { album: AlbumUiModel ->
@@ -1466,21 +1385,13 @@ fun MonoMusic(app: MonoMusic) {
                     SettingsScreen(
                         selectedTab = settingsSelectedTab,
                         onSelectedTabChange = { settingsSelectedTab = it },
-                        streamingProvider = streamingProvider,
-                        onStreamingProviderChange = { provider ->
-                            settingsManager.setStreamingProvider(provider)
-                        },
                         completeAlbumsWithYouTube = completeAlbumsWithYouTube,
                         onCompleteAlbumsWithYouTubeChange = { enabled ->
                             settingsManager.setCompleteAlbumsWithYouTube(enabled)
                         },
                         includeLocalMusic = includeLocalMusic,
                         localFolders = localMusicFolders.toList(),
-                        isAppleMusicAuthenticated = isAuthenticated,
                         hasBatteryOptimizationExemption = hasBatteryOptimizationExemption,
-                        onConnectAppleMusicClick = {
-                            activity?.let { startAppleMusicAuth(it) }
-                        },
                         onRequestBatteryOptimizationExemption = { requestBatteryOptimizationExemption() },
                         onIncludeLocalMusicChange = { enabled ->
                             settingsManager.setIncludeLocalMusic(enabled)
@@ -1584,7 +1495,7 @@ fun MonoMusic(app: MonoMusic) {
                 onBackClick = { showNowPlaying = false },
                 isVideo = isLocalVideo,
                 player = if (isLocalVideo) localMediaController else null,
-                canDownload = (streamingProvider == StreamingProvider.YOUTUBE && song.sourceType == "YOUTUBE"),
+                canDownload = (song.sourceType == "YOUTUBE"),
                 isDownloadInProgress = downloadStatuses.any { it.songId == song.id && (it.state == YouTubeDownloadStatus.State.PENDING || it.state == YouTubeDownloadStatus.State.IN_PROGRESS) },
                 onDownloadClick = {
                     var albumArtist: String? = null
@@ -1617,7 +1528,7 @@ fun MonoMusic(app: MonoMusic) {
                         app.youTubeDownloadManager.cancelDownload(active.id)
                     }
                 },
-                canAddToLibrary = (streamingProvider == StreamingProvider.YOUTUBE && song.sourceType == "YOUTUBE" && !isInLibrary),
+                canAddToLibrary = (song.sourceType == "YOUTUBE" && !isInLibrary),
                 onAddToLibraryClick = {
                     libraryScope.launch {
                         try {

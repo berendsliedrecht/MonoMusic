@@ -5,67 +5,41 @@ import androidx.media3.common.MediaMetadata
 import com.calmapps.calmmusic.ui.SongUiModel
 
 /**
- * Encapsulates per-source playback subqueues and index maps for the current
+ * Encapsulates the local playback subqueue and index map for the current
  * playback queue. This is extracted from MainActivity/MonoMusic to reduce the
- * amount of playback bookkeeping state inside the composable while preserving
- * existing behavior.
+ * amount of playback bookkeeping state inside the composable.
  */
 class PlaybackCoordinator {
 
-    var applePlaybackSubqueue: List<SongUiModel> = emptyList()
-        private set
-
     var localPlaybackSubqueue: List<SongUiModel> = emptyList()
-        private set
-
-    var appleIndexByGlobal: IntArray? = null
         private set
 
     var localIndexByGlobal: IntArray? = null
         private set
 
-    var appleCatalogIdsForQueue: List<String> = emptyList()
-        private set
-
     var localMediaItemsForQueue: List<MediaItem> = emptyList()
         private set
 
-    var appleQueueInitialized: Boolean = false
     var localQueueInitialized: Boolean = false
 
     /**
-     * Rebuilds the per-source subqueues and index maps given the full playback
-     * queue. Logic is copied from the original MonoMusic implementation.
+     * Rebuilds the local subqueue and index map given the full playback queue.
      */
     fun rebuildPlaybackSubqueues(queue: List<SongUiModel>) {
         if (queue.isEmpty()) {
-            applePlaybackSubqueue = emptyList()
             localPlaybackSubqueue = emptyList()
-            appleIndexByGlobal = null
             localIndexByGlobal = null
-            appleCatalogIdsForQueue = emptyList()
             localMediaItemsForQueue = emptyList()
-            appleQueueInitialized = false
             localQueueInitialized = false
             return
         }
 
-        val appleList = mutableListOf<SongUiModel>()
         val localList = mutableListOf<SongUiModel>()
-        val appleMap = IntArray(queue.size) { -1 }
         val localMap = IntArray(queue.size) { -1 }
-
-        var appleCounter = 0
         var localCounter = 0
 
         queue.forEachIndexed { globalIndex, song ->
             when (song.sourceType) {
-                "APPLE_MUSIC" -> {
-                    appleMap[globalIndex] = appleCounter
-                    appleList += song
-                    appleCounter++
-                }
-
                 "LOCAL_FILE", "YOUTUBE_DOWNLOAD" -> {
                     val uri = song.audioUri
                     if (!uri.isNullOrBlank()) {
@@ -77,11 +51,8 @@ class PlaybackCoordinator {
             }
         }
 
-        applePlaybackSubqueue = appleList
         localPlaybackSubqueue = localList
-        appleIndexByGlobal = appleMap
         localIndexByGlobal = localMap
-        appleCatalogIdsForQueue = appleList.map { it.audioUri ?: it.id }
 
         localMediaItemsForQueue = localList.map { song ->
             val metadata = MediaMetadata.Builder()
@@ -97,7 +68,6 @@ class PlaybackCoordinator {
                 .build()
         }
 
-        appleQueueInitialized = false
         localQueueInitialized = false
     }
 }

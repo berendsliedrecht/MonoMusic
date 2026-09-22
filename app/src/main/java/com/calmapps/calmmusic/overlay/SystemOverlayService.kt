@@ -412,12 +412,6 @@ class SystemOverlayService : Service() {
         val app = application as? MonoMusic
 
         try {
-            app?.appleMusicPlayer?.pause()
-        } catch (_: Exception) {
-            // Ignore
-        }
-
-        try {
             val context = this
             val sessionToken = SessionToken(
                 context,

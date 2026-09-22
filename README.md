@@ -9,7 +9,7 @@
 
 A calm, E‑ink‑friendly music player that puts your attention and privacy first.
 
-MonoMusic brings together your **local files**, **YouTube Music** search/streaming, and **optional Apple Music** support into one quiet, distraction‑free place to listen.
+MonoMusic brings together your **local files** and **YouTube Music** search/streaming into one quiet, distraction‑free place to listen.
 
 "Let's make technology useful again."
 
@@ -78,25 +78,15 @@ When you pick **YouTube Music** as your streaming source:
 
 > Please respect artists’ rights and your local laws when streaming or downloading from YouTube.
 
-### 3. Use Apple Music (optional)
-
-If Apple Music is available in your build and you connect your account:
-
-- Browse and play from your **Apple Music library**.
-- Mix Apple Music songs into the same unified queue as your other sources.
-- Playback uses Apple’s official tools for stability and audio quality.
-
-Apple Music support is **optional** and may require extra setup when building from source.
-
-### 4. One calm queue for everything
+### 3. One calm queue for everything
 
 Regardless of where your music comes from:
 
-- Build a single **now‑playing queue** that can mix local files, YouTube tracks, and (optionally) Apple Music.
+- Build a single **now‑playing queue** that can mix local files and YouTube tracks.
 - Use **shuffle** and **repeat** without losing your place.
 - Move naturally between songs with simple previous/next controls.
 
-### 5. Mindful playback & overlays
+### 4. Mindful playback & overlays
 
 - A quiet **Now Playing** screen with big typography and simple controls—easy on the eyes and on E‑ink.
 - Minimal chrome so the artwork, title, and basic actions are all you see.
@@ -104,16 +94,15 @@ Regardless of where your music comes from:
 
 ## Getting started
 
-1. **Install MonoMusic** on an Android device (Android 9 / API 28 or newer is recommended).  
+1. **Install MonoMusic** on an Android device (Android 10 / API 29 or newer).  
 2. **Open the app** – you’ll start with an empty library.
 3. **Add local music**
    - Go to **Settings → Local music**.
    - Pick the folders that contain your audio files.
    - MonoMusic will scan and build your library of songs, albums, and artists.
-4. **Pick a streaming source (optional)**
-   - Go to **Settings → Streaming source**.
-   - Choose **YouTube Music** to enable YouTube search and streaming.
-   - If available, enable **Apple Music** and connect your account to use your Apple library.
+4. **Search and stream (optional)**
+   - Use the search screen to find songs and albums on YouTube Music.
+   - No account is needed.
 
 You can change these choices at any time.
 
@@ -126,7 +115,6 @@ MonoMusic is designed to stay out of your business:
 - Your settings and local library live **only on your device**.
 - When you use online features:
   - YouTube‑related features talk only to YouTube/YouTube Music (and supporting streaming APIs) as needed to search and stream audio.
-  - Apple Music features, when enabled, talk only to Apple’s services using tokens stored on your device.
 
 You can always remove folders, clear local data, or turn streaming features off if you prefer a fully offline experience.
 
@@ -138,14 +126,13 @@ If you want to hack on MonoMusic or build your own APK:
   - Android Studio (Giraffe / Hedgehog or newer)
   - JDK 17
   - Android SDK Platform 35+
-  - Device or emulator running Android 9 (API 28) or newer
+  - Device or emulator running Android 10 (API 29) or newer
 
 - **Quick start**
   1. Clone this repository.
   2. Open the root folder in Android Studio.
   3. Let Gradle sync and download dependencies.
-  4. (Optional) Configure Apple Music developer credentials (see `SimpleTokenProvider` and Apple’s MusicKit documentation) if you want Apple Music to work in your build.
-  5. Select the `app` configuration and press **Run**.
+  4. Select the `app` configuration and press **Run**.
 
 - **Useful Gradle commands (from repo root)**
   - Assemble debug APK: `./gradlew :app:assembleDebug`

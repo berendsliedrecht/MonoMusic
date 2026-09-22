@@ -11,10 +11,6 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
-import com.apple.android.music.playback.controller.MediaPlayerController
-import com.apple.android.music.playback.controller.MediaPlayerControllerFactory
-import com.apple.android.sdk.authentication.AuthenticationFactory
-import com.apple.android.sdk.authentication.AuthenticationManager
 import com.calmapps.calmmusic.data.MonoMusicSettingsManager
 import com.calmapps.calmmusic.data.NowPlayingStorage
 import com.calmapps.calmmusic.data.PlaybackStateManager
@@ -24,47 +20,6 @@ import java.io.File
 
 @UnstableApi
 class MonoMusic : Application(), DefaultLifecycleObserver {
-
-    companion object {
-        init {
-            try {
-                System.loadLibrary("appleMusicSDK")
-            } catch (e: UnsatisfiedLinkError) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    val tokenProvider: SimpleTokenProvider by lazy {
-        SimpleTokenProvider(
-            initialDeveloperToken = "", // TODO: Ensure your developer token is set here
-            initialMusicUserToken = null,
-            context = this,
-        )
-    }
-
-    val authenticationManager: AuthenticationManager by lazy {
-        AuthenticationFactory.createAuthenticationManager(this)
-    }
-
-    val mediaPlayerController: MediaPlayerController by lazy {
-        MediaPlayerControllerFactory.createLocalController(
-            this,
-            tokenProvider,
-        )
-    }
-
-    val appleMusicAuthManager: AppleMusicAuthManager by lazy {
-        AppleMusicAuthManager(authenticationManager, tokenProvider)
-    }
-
-    val appleMusicPlayer: AppleMusicPlayer by lazy {
-        AppleMusicPlayer(mediaPlayerController)
-    }
-
-    val appleMusicApiClient: AppleMusicApiClient by lazy {
-        AppleMusicApiClientImpl.create(tokenProvider = tokenProvider)
-    }
 
     val mediaCache: SimpleCache by lazy {
         val cacheDirectory = File(this.cacheDir, "media_cache")
@@ -121,11 +76,6 @@ class MonoMusic : Application(), DefaultLifecycleObserver {
         )
 
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
-        appleMusicPlayer.setOnCurrentItemChangedListener { index ->
-            if (index != null && index >= 0) {
-                playbackStateManager.updateFromQueueIndex(index)
-            }
-        }
     }
 
     override fun onStart(owner: LifecycleOwner) {

@@ -6,7 +6,7 @@ import androidx.room.Index
 
 /**
  * Join table connecting playlists to songs (SongEntity) so that a playlist
- * can contain both local and Apple Music songs.
+ * can contain both local and streaming songs.
  */
 @Entity(
     tableName = "playlist_tracks",

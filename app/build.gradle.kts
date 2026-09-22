@@ -63,17 +63,8 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.8.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
 
-    // Apple MusicKit for Android
-    implementation(files("libs/musickitauth-release-1.1.2.aar"))
-    implementation(files("libs/mediaplayback-release-1.1.1.aar"))
-
-    // Networking (Retrofit + OkHttp) for Apple Music API
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.media3:media3-datasource-okhttp:1.2.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
     implementation(composeBom)
