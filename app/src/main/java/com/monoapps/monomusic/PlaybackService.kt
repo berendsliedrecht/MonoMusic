@@ -3,9 +3,11 @@ package com.monoapps.monomusic
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.annotation.OptIn
 import androidx.core.net.toUri
 import androidx.media3.common.C
@@ -72,8 +74,10 @@ class PlaybackService : MediaSessionService() {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) = update()
             private fun update() {
                 val trackId = player.currentMediaItem?.mediaId?.toLongOrNull()
+                // Negative ids are local files; they never touch the network.
                 app.streamingActive.value = player.isPlaying &&
-                    (trackId == null || app.offlineManager.fileFor(trackId) == null)
+                    (trackId == null ||
+                        (trackId > 0 && app.offlineManager.fileFor(trackId) == null))
             }
         })
 
@@ -99,10 +103,22 @@ class PlaybackService : MediaSessionService() {
             ): ListenableFuture<MutableList<MediaItem>> {
                 val quality = app.tidalSession.audioQuality.name
                 val resolved = mediaItems.map { item ->
-                    item.buildUpon()
-                        .setUri("tidal://track/${item.mediaId}")
-                        .setCustomCacheKey("tidal/${item.mediaId}/$quality")
-                        .build()
+                    val id = item.mediaId.toLongOrNull()
+                    if (id != null && id < 0) {
+                        // Local MediaStore track: play its content URI directly.
+                        item.buildUpon()
+                            .setUri(
+                                ContentUris.withAppendedId(
+                                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, -id
+                                )
+                            )
+                            .build()
+                    } else {
+                        item.buildUpon()
+                            .setUri("tidal://track/${item.mediaId}")
+                            .setCustomCacheKey("tidal/${item.mediaId}/$quality")
+                            .build()
+                    }
                 }.toMutableList()
                 return Futures.immediateFuture(resolved)
             }

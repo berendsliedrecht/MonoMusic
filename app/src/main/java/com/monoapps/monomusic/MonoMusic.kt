@@ -5,6 +5,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
+import com.monoapps.monomusic.local.LocalLibrary
 import com.monoapps.monomusic.offline.OfflineManager
 import com.monoapps.monomusic.tidal.LibraryCache
 import com.monoapps.monomusic.tidal.TidalAuth
@@ -33,6 +34,7 @@ class MonoMusic : Application() {
         OfflineManager(this, tidalClient, tidalSession, httpClient, streamingActive)
     }
     val libraryCache: LibraryCache by lazy { LibraryCache(this) }
+    val localLibrary: LocalLibrary by lazy { LocalLibrary(this) }
 
     override fun onCreate() {
         super.onCreate()

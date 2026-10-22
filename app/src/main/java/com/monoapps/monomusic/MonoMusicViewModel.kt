@@ -14,6 +14,9 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.monoapps.monomusic.local.LocalFolder
+import com.monoapps.monomusic.local.albumsFrom
+import com.monoapps.monomusic.local.artistsFrom
 import com.monoapps.monomusic.offline.OfflineCollection
 import com.monoapps.monomusic.offline.OfflineManager
 import com.monoapps.monomusic.tidal.AudioQuality
@@ -54,6 +57,8 @@ class MonoMusicViewModel(application: Application) : AndroidViewModel(applicatio
         if (session.isLoggedIn) AuthState.LoggedIn else AuthState.LoggedOut
     )
         private set
+
+    val isLoggedIn: Boolean get() = authState is AuthState.LoggedIn
     var loginError by mutableStateOf<String?>(null)
         private set
 
@@ -85,12 +90,13 @@ class MonoMusicViewModel(application: Application) : AndroidViewModel(applicatio
     // The library tabs show favorites merged with everything derived from
     // offline downloads and liked albums, deduplicated by id.
 
-    /** Songs tab: favorite tracks, downloaded tracks, and liked albums' tracks, newest first. */
+    /** Songs tab: favorite, downloaded, liked-album, and local tracks, newest first. */
     val libraryTracks by derivedStateOf {
         val seen = mutableSetOf<Long>()
         (favoriteTracks.data.orEmpty() +
             offlineCollections.flatMap { it.tracks } +
-            likedAlbumTracks.values.flatten())
+            likedAlbumTracks.values.flatten() +
+            localTracks)
             .filter { seen.add(it.id) }
             .sortedWith(
                 compareByDescending<TidalTrack> { it.addedAt }
@@ -123,7 +129,8 @@ class MonoMusicViewModel(application: Application) : AndroidViewModel(applicatio
                 if (!seen.add(id)) return@mapNotNull null
                 TidalAlbum(id, title, t.artistName, t.artistId, 0, null, null)
             }
-        (favorites + pinnedAlbums + fromPinnedTracks)
+        val locals = localAlbums.filter { seen.add(it.id) }
+        (favorites + pinnedAlbums + fromPinnedTracks + locals)
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title })
     }
 
@@ -143,8 +150,64 @@ class MonoMusicViewModel(application: Application) : AndroidViewModel(applicatio
                 val id = t.artistId ?: return@mapNotNull null
                 if (t.artistName.isBlank() || !seen.add(id)) null else TidalArtist(id, t.artistName)
             }
-        (favorites + fromAlbums + fromPinned)
+        val locals = localArtists.filter { seen.add(it.id) }
+        (favorites + fromAlbums + fromPinned + locals)
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+    }
+
+    // ---- local music ----
+
+    var localTracks by mutableStateOf(emptyList<TidalTrack>())
+        private set
+    var localAlbums by mutableStateOf(emptyList<TidalAlbum>())
+        private set
+    var localArtists by mutableStateOf(emptyList<TidalArtist>())
+        private set
+    var localFolderName by mutableStateOf(app.localLibrary.folderName)
+        private set
+
+    /** Folder list shown by the Settings picker dialog; null hides it. */
+    var localFolderChoices by mutableStateOf<List<LocalFolder>?>(null)
+        private set
+
+    fun loadLocalFolders() {
+        viewModelScope.launch {
+            val folders = app.localLibrary.listFolders()
+            if (folders.isEmpty()) uiMessage = "No music files found on this phone"
+            else localFolderChoices = folders
+        }
+    }
+
+    fun dismissLocalFolders() {
+        localFolderChoices = null
+    }
+
+    fun selectLocalFolder(folder: LocalFolder) {
+        localFolderChoices = null
+        app.localLibrary.setFolder(folder.path, folder.name)
+        localFolderName = folder.name
+        rescanLocal(announce = true)
+    }
+
+    fun clearLocalFolder() {
+        localFolderChoices = null
+        app.localLibrary.setFolder(null, null)
+        localFolderName = null
+        localTracks = emptyList()
+        localAlbums = emptyList()
+        localArtists = emptyList()
+    }
+
+    fun rescanLocal(announce: Boolean = false) {
+        viewModelScope.launch {
+            val tracks = app.localLibrary.scanFolder()
+            localTracks = tracks
+            localAlbums = albumsFrom(tracks)
+            localArtists = artistsFrom(tracks)
+            if (announce) {
+                uiMessage = if (tracks.size == 1) "1 song found" else "${tracks.size} songs found"
+            }
+        }
     }
 
     // ---- details ----
@@ -335,6 +398,8 @@ class MonoMusicViewModel(application: Application) : AndroidViewModel(applicatio
             app.offlineManager.storageLow.collect { offlineStorageLow = it }
         }
 
+        if (app.localLibrary.folderPath != null) rescanLocal()
+
         if (session.isLoggedIn) {
             viewModelScope.launch {
                 runCatching { client.loadSessionInfo() }
@@ -520,6 +585,14 @@ class MonoMusicViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun openAlbum(album: TidalAlbum) {
         selectedAlbum = album
+        if (album.id < 0) {
+            // Local album: its tracks are already in memory.
+            albumTracks = Loadable(
+                localTracks.filter { it.albumId == album.id }
+                    .sortedWith(compareBy({ it.volumeNumber }, { it.trackNumber }, { it.title }))
+            )
+            return
+        }
         albumTracksCache[album.id]?.let {
             albumTracks = Loadable(it)
             return
@@ -538,6 +611,12 @@ class MonoMusicViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun openArtist(artist: TidalArtist) {
         selectedArtist = artist
+        if (artist.id < 0) {
+            // Local artist: no Tidal top songs; albums come from the scan.
+            artistTopTracks = Loadable(emptyList())
+            artistAlbums = Loadable(localAlbums.filter { it.artistId == artist.id })
+            return
+        }
         val cachedTop = artistTopTracksCache[artist.id]
         val cachedAlbums = artistAlbumsCache[artist.id]
         artistTopTracks = cachedTop?.let { Loadable(it) } ?: Loadable(isLoading = true)

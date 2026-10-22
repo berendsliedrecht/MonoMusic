@@ -37,11 +37,14 @@ fun SongsScreen(viewModel: MonoMusicViewModel) {
                         track = track,
                         isCurrentlyPlaying = track.id == viewModel.currentTrack?.id,
                         isDownloaded = track.id in viewModel.offlineTrackIds,
+                        isLocal = track.id < 0,
                         onClick = { viewModel.playTracks(tracks, index) },
                         // Remembered so the row can skip recomposition; a fresh
                         // list every pass defeats Compose's parameter check.
                         menuEntries = remember(track, isFavorite, trackPinned) {
-                            listOf(
+                            // Local files have no Tidal actions.
+                            if (track.id < 0) emptyList()
+                            else listOf(
                                 RowMenuEntry("Add to playlist") { pickerTrack = track },
                                 RowMenuEntry(
                                     if (isFavorite) "Remove from favorites" else "Add to favorites"
@@ -60,7 +63,8 @@ fun SongsScreen(viewModel: MonoMusicViewModel) {
                 CenteredError(state.error) { viewModel.loadFavoriteTracks() }
 
             else -> CenteredMessage(
-                "No songs yet.\n\nFavorite songs, like an album, or keep music offline to see them here."
+                "No songs yet.\n\nChoose a local music folder in Settings, or favorite " +
+                    "songs, like an album, or keep music offline on Tidal."
             )
         }
 

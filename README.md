@@ -4,9 +4,9 @@
 
 # MonoMusic
 
-A calm, E-ink-friendly music player for the Mudita Kompakt that streams from [Tidal](https://tidal.com). Built with Mudita Mindful Design (MMD): black and white, no animations, no distractions.
+A calm, E-ink-friendly music player for the Mudita Kompakt that plays music files stored on the phone and streams from [Tidal](https://tidal.com). Built with Mudita Mindful Design (MMD): black and white, no animations, no distractions.
 
-You log in with your own Tidal account and MonoMusic becomes a quiet front end for it: your favorite songs, albums, artists and playlists, plus search across the full Tidal catalog. An active Tidal subscription is required for playback.
+You log in with your own Tidal account and MonoMusic becomes a quiet front end for it: your favorite songs, albums, artists and playlists, plus search across the full Tidal catalog. An active Tidal subscription is required for streaming. Local music needs no account at all: pick the folder your music lives in and the app works fully offline.
 
 "Let's make technology useful again."
 
@@ -15,6 +15,10 @@ Originally forked from [davidraywilson/CalmMusic](https://github.com/davidraywil
 ## What you can do
 
 Play your Tidal favorites and playlists, search the catalog, and manage it all from the phone: favorite and unfavorite songs, albums and artists, create playlists, and add or remove songs. Changes sync to your Tidal account, so the library is the same one you see in the official apps. Playback runs as a proper media session with lock screen controls, and streaming quality is selectable in Settings (96 kbps AAC, 320 kbps AAC, or lossless FLAC).
+
+## Local music
+
+Copy music onto the phone (over USB, for example), open Settings, and choose the folder it lives in. The songs, their albums and artists then show up in the normal library tabs next to your Tidal music, marked with a small phone icon. Local songs are read through Android's media index, so even a library of thousands of files loads instantly without a slow file scan. This works without a Tidal account.
 
 ## Logging in
 
@@ -33,6 +37,7 @@ Download the latest APK from the [releases page](../../releases) and sideload it
 ## Structure
 
 - `app/src/main/java/com/calmapps/calmmusic/tidal/` - Tidal API client: OAuth device login (`TidalAuth`), session storage (`TidalSession`), endpoints and stream resolution (`TidalClient`), JSON parsing (`TidalJson`)
+- `app/src/main/java/com/monoapps/monomusic/local/` - local playback: MediaStore folder listing and library scanning (`LocalLibrary`)
 - `MonoMusicViewModel.kt` - app state: login, library, search, details, playback queue
 - `PlaybackService.kt` - Media3 playback service; resolves `tidal://track/<id>` to a fresh stream URL when a song starts
 - `MainActivity.kt` - navigation, top bar and bottom tab bar
@@ -40,7 +45,7 @@ Download the latest APK from the [releases page](../../releases) and sideload it
 
 ## Privacy
 
-No analytics, no trackers, no accounts other than your own Tidal login. The app connects to `tidal.com` services only: `auth.tidal.com` to log in and `api.tidal.com` to browse and stream. Search queries and playback requests go to Tidal, as they must; nothing goes anywhere else, and nothing is stored off the phone.
+No analytics, no trackers, no accounts other than your own Tidal login. The app connects to `tidal.com` services only: `auth.tidal.com` to log in and `api.tidal.com` to browse and stream. Search queries and playback requests go to Tidal, as they must; nothing goes anywhere else, and nothing is stored off the phone. Local playback asks for the phone's music permission and never touches the network.
 
 ## Support
 

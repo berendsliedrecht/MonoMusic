@@ -25,7 +25,8 @@ fun ArtistsScreen(viewModel: MonoMusicViewModel, onOpenArtist: (TidalArtist) -> 
                 CenteredError(state.error) { viewModel.loadFavoriteArtists() }
 
             artists.isEmpty() -> CenteredMessage(
-                "No artists yet.\n\nFavorite an artist, or like or download an album, to see them here."
+                "No artists yet.\n\nChoose a local music folder in Settings, or favorite " +
+                    "an artist or like an album on Tidal."
             )
 
             else -> LazyColumnMMD(contentPadding = PaddingValues(16.dp)) {

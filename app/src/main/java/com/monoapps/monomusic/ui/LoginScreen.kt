@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -23,9 +24,13 @@ import com.mudita.mmd.components.progress_indicator.CircularProgressIndicatorMMD
 import com.mudita.mmd.components.text.TextMMD
 
 @Composable
-fun LoginScreen(viewModel: MonoMusicViewModel) {
+fun LoginScreen(viewModel: MonoMusicViewModel, onLoggedIn: () -> Unit) {
     val context = LocalContext.current
     val state = viewModel.authState
+
+    LaunchedEffect(state) {
+        if (state is AuthState.LoggedIn) onLoggedIn()
+    }
 
     Column(
         modifier = Modifier

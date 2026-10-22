@@ -104,10 +104,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun Root(viewModel: MonoMusicViewModel = viewModel()) {
     NotificationPermissionRequest()
-    when (viewModel.authState) {
-        is AuthState.LoggedIn -> MainApp(viewModel)
-        else -> LoginScreen(viewModel)
-    }
+    MainApp(viewModel)
 }
 
 @Composable
@@ -248,10 +245,14 @@ private fun MonoMusicNavHost(
             SettingsScreen(
                 viewModel,
                 onOpenDownloads = { navController.navigate(Screen.Downloads.route) },
+                onOpenLogin = { navController.navigate(Screen.Login.route) },
             )
         }
         composable(Screen.Downloads.route) {
             DownloadsScreen(viewModel)
+        }
+        composable(Screen.Login.route) {
+            LoginScreen(viewModel, onLoggedIn = { navController.popBackStack() })
         }
     }
 }
@@ -341,13 +342,14 @@ private fun MonoMusicTopBar(
                         Screen.NowPlaying.route -> "Now Playing"
                         Screen.Settings.route -> "Settings"
                         Screen.Downloads.route -> "Downloads"
+                        Screen.Login.route -> "Tidal"
                         else -> "MonoMusic"
                     }
                 )
             }
         },
         actions = {
-            if (route in navRoutes && route != Screen.Settings.route) {
+            if (route in navRoutes && route != Screen.Settings.route && viewModel.isLoggedIn) {
                 IconButton(onClick = onOpenSearch) {
                     Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
                 }

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.DownloadDone
 import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -74,6 +75,7 @@ fun TrackRow(
     onClick: () -> Unit,
     showTrackNumber: Boolean = false,
     isDownloaded: Boolean = false,
+    isLocal: Boolean = false,
     menuEntries: List<RowMenuEntry> = emptyList(),
     showDivider: Boolean = true,
 ) {
@@ -139,6 +141,14 @@ fun TrackRow(
                         Icon(
                             imageVector = Icons.Outlined.DownloadDone,
                             contentDescription = "Available offline",
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    if (isLocal) {
+                        Icon(
+                            imageVector = Icons.Outlined.Smartphone,
+                            contentDescription = "On this phone",
                             modifier = Modifier.size(16.dp),
                         )
                         Spacer(modifier = Modifier.width(6.dp))

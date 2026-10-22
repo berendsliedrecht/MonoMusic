@@ -62,22 +62,24 @@ fun ArtistDetailsScreen(
                     .padding(bottom = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (topTracks.isNotEmpty()) {
+                // Local artists have no Tidal top songs; play their library songs.
+                val playable = topTracks.ifEmpty { libraryTracks }
+                if (playable.isNotEmpty()) {
                     BorderedIconButton(
                         icon = Icons.Outlined.PlayArrow,
-                        contentDescription = "Play top songs",
-                        onClick = { viewModel.playTracks(topTracks) },
+                        contentDescription = "Play songs",
+                        onClick = { viewModel.playTracks(playable) },
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     BorderedIconButton(
                         icon = Icons.Outlined.Shuffle,
-                        contentDescription = "Shuffle top songs",
-                        onClick = { viewModel.playTracks(topTracks, shuffled = true) },
+                        contentDescription = "Shuffle songs",
+                        onClick = { viewModel.playTracks(playable, shuffled = true) },
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                 }
                 Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = { viewModel.toggleFavoriteArtist(artist) }) {
+                if (artist.id > 0) IconButton(onClick = { viewModel.toggleFavoriteArtist(artist) }) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Filled.Favorite
                         else Icons.Outlined.FavoriteBorder,
@@ -104,9 +106,11 @@ fun ArtistDetailsScreen(
                     track = track,
                     isCurrentlyPlaying = track.id == viewModel.currentTrack?.id,
                     isDownloaded = track.id in viewModel.offlineTrackIds,
+                    isLocal = track.id < 0,
                     onClick = { viewModel.playTracks(libraryTracks, index) },
                     menuEntries = remember(track, isTrackFavorite, trackPinned) {
-                        listOf(
+                        if (track.id < 0) emptyList()
+                        else listOf(
                             RowMenuEntry(
                                 if (isTrackFavorite) "Remove from favorites" else "Add to favorites"
                             ) { viewModel.toggleFavoriteTrack(track) },

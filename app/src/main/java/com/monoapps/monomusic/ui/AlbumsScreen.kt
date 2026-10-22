@@ -25,7 +25,8 @@ fun AlbumsScreen(viewModel: MonoMusicViewModel, onOpenAlbum: (TidalAlbum) -> Uni
                 CenteredError(state.error) { viewModel.loadFavoriteAlbums() }
 
             albums.isEmpty() -> CenteredMessage(
-                "No albums yet.\n\nFavorite an album or keep one offline to see it here."
+                "No albums yet.\n\nChoose a local music folder in Settings, or favorite " +
+                    "an album or keep one offline on Tidal."
             )
 
             else -> LazyColumnMMD(contentPadding = PaddingValues(16.dp)) {

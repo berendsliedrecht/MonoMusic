@@ -91,7 +91,10 @@ fun NowPlayingScreen(viewModel: MonoMusicViewModel) {
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        viewModel.streamQuality?.let { quality ->
+        if (track.id < 0) {
+            Spacer(modifier = Modifier.height(8.dp))
+            TextMMD(text = "Local file", fontSize = 13.sp)
+        } else viewModel.streamQuality?.let { quality ->
             Spacer(modifier = Modifier.height(8.dp))
             TextMMD(text = quality, fontSize = 13.sp)
         }
@@ -159,7 +162,7 @@ fun NowPlayingScreen(viewModel: MonoMusicViewModel) {
             ) {
                 Icon(imageVector = Icons.Outlined.Shuffle, contentDescription = "Shuffle")
             }
-            IconButton(onClick = { viewModel.toggleFavoriteTrack(track) }) {
+            if (track.id > 0) IconButton(onClick = { viewModel.toggleFavoriteTrack(track) }) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Filled.Favorite
                     else Icons.Outlined.FavoriteBorder,

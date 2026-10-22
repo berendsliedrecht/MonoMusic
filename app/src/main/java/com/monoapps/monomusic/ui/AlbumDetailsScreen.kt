@@ -41,6 +41,7 @@ fun AlbumDetailsScreen(viewModel: MonoMusicViewModel) {
     var pickerTrack by remember { mutableStateOf<TidalTrack?>(null) }
     val isFavorite = album.id in viewModel.favoriteAlbumIds
     val isPinned = viewModel.isPinned("album", album.id.toString())
+    val isLocal = album.id < 0
 
     when {
         state.isLoading -> CenteredMessage("Loading album…")
@@ -72,7 +73,7 @@ fun AlbumDetailsScreen(viewModel: MonoMusicViewModel) {
                         onClick = { viewModel.playTracks(tracks, shuffled = true) },
                     )
                     Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = {
+                    if (!isLocal) IconButton(onClick = {
                         if (isPinned) {
                             viewModel.unpinCollection("album", album.id.toString())
                         } else {
@@ -95,7 +96,7 @@ fun AlbumDetailsScreen(viewModel: MonoMusicViewModel) {
                             else "Keep offline",
                         )
                     }
-                    IconButton(onClick = { viewModel.toggleFavoriteAlbum(album) }) {
+                    if (!isLocal) IconButton(onClick = { viewModel.toggleFavoriteAlbum(album) }) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Filled.Favorite
                             else Icons.Outlined.FavoriteBorder,
@@ -122,7 +123,8 @@ fun AlbumDetailsScreen(viewModel: MonoMusicViewModel) {
                     onClick = { viewModel.playTracks(tracks, index) },
                     showTrackNumber = true,
                     menuEntries = remember(track, isTrackFavorite, trackPinned) {
-                        listOf(
+                        if (track.id < 0) emptyList()
+                        else listOf(
                             RowMenuEntry(
                                 if (isTrackFavorite) "Remove from favorites" else "Add to favorites"
                             ) { viewModel.toggleFavoriteTrack(track) },

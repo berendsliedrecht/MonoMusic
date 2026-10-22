@@ -33,6 +33,13 @@ fun PlaylistsScreen(viewModel: MonoMusicViewModel, onOpenPlaylist: (TidalPlaylis
     val playlists = state.data.orEmpty()
     var showCreateDialog by remember { mutableStateOf(false) }
 
+    if (!viewModel.isLoggedIn) {
+        CenteredMessage(
+            "Playlists live in your Tidal account.\n\nLog in via Settings to use them."
+        )
+        return
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         when {
             state.data == null && state.isLoading -> CenteredMessage("Loading playlists…")
