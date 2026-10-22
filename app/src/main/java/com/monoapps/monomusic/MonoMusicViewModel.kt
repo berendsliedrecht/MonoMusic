@@ -14,9 +14,12 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.monoapps.monomusic.local.DevicePlaylist
 import com.monoapps.monomusic.local.LocalFolder
+import com.monoapps.monomusic.local.LocalSearchResults
 import com.monoapps.monomusic.local.albumsFrom
 import com.monoapps.monomusic.local.artistsFrom
+import com.monoapps.monomusic.local.searchLocal
 import com.monoapps.monomusic.offline.OfflineCollection
 import com.monoapps.monomusic.offline.OfflineManager
 import com.monoapps.monomusic.tidal.AudioQuality
@@ -210,6 +213,62 @@ class MonoMusicViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    // ---- device playlists ----
+
+    var devicePlaylists by mutableStateOf(emptyList<DevicePlaylist>())
+        private set
+    private var selectedDevicePlaylistId by mutableStateOf<String?>(null)
+
+    /** Reads through the live list so edits show up while the details screen is open. */
+    val selectedDevicePlaylist: DevicePlaylist?
+        get() = devicePlaylists.firstOrNull { it.id == selectedDevicePlaylistId }
+
+    fun openDevicePlaylist(playlist: DevicePlaylist) {
+        selectedDevicePlaylistId = playlist.id
+    }
+
+    fun createDevicePlaylist(name: String) {
+        saveDevicePlaylists(
+            devicePlaylists + DevicePlaylist(java.util.UUID.randomUUID().toString(), name, emptyList())
+        )
+        uiMessage = "Playlist created"
+    }
+
+    fun deleteDevicePlaylist(id: String) {
+        saveDevicePlaylists(devicePlaylists.filterNot { it.id == id })
+        uiMessage = "Playlist removed"
+    }
+
+    fun addToDevicePlaylist(track: TidalTrack, playlist: DevicePlaylist) {
+        if (playlist.tracks.any { it.id == track.id }) {
+            uiMessage = "Already in ${playlist.title}"
+            return
+        }
+        saveDevicePlaylists(
+            devicePlaylists.map {
+                if (it.id == playlist.id) it.copy(tracks = it.tracks + track) else it
+            }
+        )
+        uiMessage = "Added to ${playlist.title}"
+    }
+
+    fun removeFromDevicePlaylist(playlistId: String, index: Int) {
+        saveDevicePlaylists(
+            devicePlaylists.map { playlist ->
+                if (playlist.id == playlistId && index in playlist.tracks.indices) {
+                    playlist.copy(tracks = playlist.tracks.toMutableList().apply { removeAt(index) })
+                } else {
+                    playlist
+                }
+            }
+        )
+    }
+
+    private fun saveDevicePlaylists(updated: List<DevicePlaylist>) {
+        devicePlaylists = updated
+        viewModelScope.launch { app.devicePlaylistStore.save(updated) }
+    }
+
     // ---- details ----
 
     // Small LRU caches so revisiting a details screen is instant.
@@ -243,6 +302,8 @@ class MonoMusicViewModel(application: Application) : AndroidViewModel(applicatio
 
     var searchQuery by mutableStateOf("")
     var searchResults by mutableStateOf<TidalSearchResults?>(null)
+        private set
+    var localSearchResults by mutableStateOf<LocalSearchResults?>(null)
         private set
     var isSearching by mutableStateOf(false)
         private set
@@ -399,6 +460,7 @@ class MonoMusicViewModel(application: Application) : AndroidViewModel(applicatio
         }
 
         if (app.localLibrary.folderPath != null) rescanLocal()
+        viewModelScope.launch { devicePlaylists = app.devicePlaylistStore.load() }
 
         if (session.isLoggedIn) {
             viewModelScope.launch {
@@ -473,6 +535,7 @@ class MonoMusicViewModel(application: Application) : AndroidViewModel(applicatio
         favoriteArtistIds = emptySet()
         likedAlbumTracks = emptyMap()
         searchResults = null
+        localSearchResults = null
         searchQuery = ""
         currentTrack = null
         queueTracks = emptyList()
@@ -569,6 +632,12 @@ class MonoMusicViewModel(application: Application) : AndroidViewModel(applicatio
     fun performSearch() {
         val query = searchQuery.trim()
         if (query.isEmpty()) return
+        localSearchResults = searchLocal(query, localTracks, localAlbums, localArtists, devicePlaylists)
+        if (!isLoggedIn) {
+            searchResults = null
+            searchError = null
+            return
+        }
         viewModelScope.launch {
             isSearching = true
             searchError = null
@@ -880,9 +949,22 @@ class MonoMusicViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun playTracks(tracks: List<TidalTrack>, startIndex: Int = 0, shuffled: Boolean = false) {
         val player = controller ?: return
-        if (tracks.isEmpty()) return
-        queueTracks = tracks
-        val items = tracks.map { it.toMediaItem() }
+        var queue = tracks
+        var index = startIndex
+        // Logged out, Tidal entries in the list (e.g. a mixed device playlist)
+        // would hard-fail in the player; keep the queue to local files.
+        if (!isLoggedIn && tracks.any { it.id > 0 }) {
+            val clicked = tracks.getOrNull(startIndex)
+            if (clicked != null && clicked.id > 0) {
+                uiMessage = "Log in to Tidal in Settings to play this song"
+                return
+            }
+            queue = tracks.filter { it.id < 0 }
+            index = clicked?.let { c -> queue.indexOfFirst { it.id == c.id } }?.coerceAtLeast(0) ?: 0
+        }
+        if (queue.isEmpty()) return
+        queueTracks = queue
+        val items = queue.map { it.toMediaItem() }
         player.shuffleModeEnabled = shuffled
         if (shuffled) {
             // Start at the head of the player's shuffle order (itself random).
@@ -890,7 +972,7 @@ class MonoMusicViewModel(application: Application) : AndroidViewModel(applicatio
             // WITHIN that order, leaving few or no songs to skip to.
             player.setMediaItems(items)
         } else {
-            player.setMediaItems(items, startIndex, 0L)
+            player.setMediaItems(items, index, 0L)
         }
         player.prepare()
         player.play()

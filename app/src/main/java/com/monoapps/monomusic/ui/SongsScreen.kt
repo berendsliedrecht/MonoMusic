@@ -42,8 +42,10 @@ fun SongsScreen(viewModel: MonoMusicViewModel) {
                         // Remembered so the row can skip recomposition; a fresh
                         // list every pass defeats Compose's parameter check.
                         menuEntries = remember(track, isFavorite, trackPinned) {
-                            // Local files have no Tidal actions.
-                            if (track.id < 0) emptyList()
+                            // Local files have no Tidal actions beyond playlists.
+                            if (track.id < 0) listOf(
+                                RowMenuEntry("Add to playlist") { pickerTrack = track },
+                            )
                             else listOf(
                                 RowMenuEntry("Add to playlist") { pickerTrack = track },
                                 RowMenuEntry(
@@ -81,13 +83,6 @@ fun SongsScreen(viewModel: MonoMusicViewModel) {
     }
 
     pickerTrack?.let { track ->
-        PlaylistPickerDialog(
-            playlists = viewModel.playlists.data.orEmpty(),
-            onPick = { playlist ->
-                viewModel.addToPlaylist(track, playlist)
-                pickerTrack = null
-            },
-            onDismiss = { pickerTrack = null },
-        )
+        TrackPlaylistPicker(viewModel, track) { pickerTrack = null }
     }
 }

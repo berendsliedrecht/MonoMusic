@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -348,36 +350,72 @@ fun CenteredError(message: String, onRetry: () -> Unit) {
     }
 }
 
-/** Dialog listing the user's playlists to add a track to. */
+/**
+ * "Add to playlist" dialog for a track: device playlists always, Tidal
+ * playlists only for Tidal tracks (they cannot hold local files).
+ */
 @Composable
-fun PlaylistPickerDialog(
-    playlists: List<TidalPlaylist>,
-    onPick: (TidalPlaylist) -> Unit,
+fun TrackPlaylistPicker(
+    viewModel: MonoMusicViewModel,
+    track: TidalTrack,
     onDismiss: () -> Unit,
 ) {
+    val device = viewModel.devicePlaylists
+    val tidal = if (track.id > 0) viewModel.playlists.data.orEmpty() else emptyList()
+    val showSections = device.isNotEmpty() && tidal.isNotEmpty()
+
     MonoDialog(title = "Add to playlist", onDismissRequest = onDismiss) {
-        if (playlists.isEmpty()) {
-            TextMMD(text = "No playlists yet. Create one on the Playlists tab first.")
-        }
-        playlists.forEach { playlist ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { onPick(playlist) }
-                    .padding(vertical = 10.dp),
-            ) {
-                TextMMD(
-                    text = playlist.title,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            if (device.isEmpty() && tidal.isEmpty()) {
+                TextMMD(text = "No playlists yet. Create one on the Playlists tab first.")
             }
-            DashedDivider(thickness = 1.dp)
+            if (showSections) PickerSectionLabel("On this phone")
+            device.forEach { playlist ->
+                PickerRow(playlist.title) {
+                    viewModel.addToDevicePlaylist(track, playlist)
+                    onDismiss()
+                }
+            }
+            if (showSections) PickerSectionLabel("Tidal")
+            tidal.forEach { playlist ->
+                PickerRow(playlist.title) {
+                    viewModel.addToPlaylist(track, playlist)
+                    onDismiss()
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun PickerSectionLabel(text: String) {
+    TextMMD(
+        text = text,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Black,
+        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
+private fun PickerRow(title: String, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(vertical = 10.dp),
+    ) {
+        TextMMD(
+            text = title,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+    DashedDivider(thickness = 1.dp)
 }

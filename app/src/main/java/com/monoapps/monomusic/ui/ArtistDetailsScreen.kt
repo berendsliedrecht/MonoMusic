@@ -109,7 +109,9 @@ fun ArtistDetailsScreen(
                     isLocal = track.id < 0,
                     onClick = { viewModel.playTracks(libraryTracks, index) },
                     menuEntries = remember(track, isTrackFavorite, trackPinned) {
-                        if (track.id < 0) emptyList()
+                        if (track.id < 0) listOf(
+                            RowMenuEntry("Add to playlist") { pickerTrack = track },
+                        )
                         else listOf(
                             RowMenuEntry(
                                 if (isTrackFavorite) "Remove from favorites" else "Add to favorites"
@@ -181,13 +183,6 @@ fun ArtistDetailsScreen(
     }
 
     pickerTrack?.let { track ->
-        PlaylistPickerDialog(
-            playlists = viewModel.playlists.data.orEmpty(),
-            onPick = { playlist ->
-                viewModel.addToPlaylist(track, playlist)
-                pickerTrack = null
-            },
-            onDismiss = { pickerTrack = null },
-        )
+        TrackPlaylistPicker(viewModel, track) { pickerTrack = null }
     }
 }

@@ -166,13 +166,6 @@ fun PlaylistDetailsScreen(viewModel: MonoMusicViewModel, onPlaylistRemoved: () -
     }
 
     pickerTrack?.let { track ->
-        PlaylistPickerDialog(
-            playlists = viewModel.playlists.data.orEmpty(),
-            onPick = { target ->
-                viewModel.addToPlaylist(track, target)
-                pickerTrack = null
-            },
-            onDismiss = { pickerTrack = null },
-        )
+        TrackPlaylistPicker(viewModel, track) { pickerTrack = null }
     }
 }

@@ -53,10 +53,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.monoapps.monomusic.local.DevicePlaylist
 import com.monoapps.monomusic.ui.AlbumDetailsScreen
 import com.monoapps.monomusic.ui.AlbumsScreen
 import com.monoapps.monomusic.ui.ArtistDetailsScreen
 import com.monoapps.monomusic.ui.ArtistsScreen
+import com.monoapps.monomusic.ui.DevicePlaylistDetailsScreen
 import com.monoapps.monomusic.ui.DownloadsScreen
 import com.monoapps.monomusic.ui.LoginScreen
 import com.monoapps.monomusic.ui.NowPlayingScreen
@@ -198,6 +200,10 @@ private fun MonoMusicNavHost(
         viewModel.openPlaylist(playlist)
         navController.navigate(Screen.PlaylistDetails.route)
     }
+    val openDevicePlaylist = { playlist: DevicePlaylist ->
+        viewModel.openDevicePlaylist(playlist)
+        navController.navigate(Screen.DevicePlaylistDetails.route)
+    }
 
     NavHost(
         navController = navController,
@@ -210,7 +216,11 @@ private fun MonoMusicNavHost(
         popExitTransition = { ExitTransition.None },
     ) {
         composable(Screen.Playlists.route) {
-            PlaylistsScreen(viewModel, onOpenPlaylist = openPlaylist)
+            PlaylistsScreen(
+                viewModel,
+                onOpenPlaylist = openPlaylist,
+                onOpenDevicePlaylist = openDevicePlaylist,
+            )
         }
         composable(Screen.Artists.route) {
             ArtistsScreen(viewModel, onOpenArtist = openArtist)
@@ -227,6 +237,7 @@ private fun MonoMusicNavHost(
                 onOpenAlbum = openAlbum,
                 onOpenArtist = openArtist,
                 onOpenPlaylist = openPlaylist,
+                onOpenDevicePlaylist = openDevicePlaylist,
             )
         }
         composable(Screen.AlbumDetails.route) {
@@ -237,6 +248,12 @@ private fun MonoMusicNavHost(
         }
         composable(Screen.PlaylistDetails.route) {
             PlaylistDetailsScreen(viewModel, onPlaylistRemoved = { navController.popBackStack() })
+        }
+        composable(Screen.DevicePlaylistDetails.route) {
+            DevicePlaylistDetailsScreen(
+                viewModel,
+                onPlaylistRemoved = { navController.popBackStack() },
+            )
         }
         composable(Screen.NowPlaying.route) {
             NowPlayingScreen(viewModel)
@@ -292,7 +309,11 @@ private fun MonoMusicTopBar(
                     },
                     expanded = true,
                     onExpandedChange = { },
-                    placeholder = { TextMMD(text = "Search Tidal") },
+                    placeholder = {
+                        TextMMD(
+                            text = if (viewModel.isLoggedIn) "Search" else "Search local music"
+                        )
+                    },
                     trailingIcon = {
                         IconButton(onClick = {
                             keyboardController?.hide()
@@ -333,6 +354,10 @@ private fun MonoMusicTopBar(
                     viewModel.selectedPlaylist?.title ?: "Playlist"
                 )
 
+                Screen.DevicePlaylistDetails.route -> ScreenTitle(
+                    viewModel.selectedDevicePlaylist?.title ?: "Playlist"
+                )
+
                 else -> ScreenTitle(
                     when (route) {
                         Screen.Playlists.route -> "Playlists"
@@ -349,7 +374,7 @@ private fun MonoMusicTopBar(
             }
         },
         actions = {
-            if (route in navRoutes && route != Screen.Settings.route && viewModel.isLoggedIn) {
+            if (route in navRoutes && route != Screen.Settings.route) {
                 IconButton(onClick = onOpenSearch) {
                     Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
                 }

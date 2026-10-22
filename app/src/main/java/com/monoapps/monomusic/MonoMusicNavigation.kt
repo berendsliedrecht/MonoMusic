@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Playlists : Screen("playlists", "Playlists", Icons.Outlined.LibraryMusic)
     object PlaylistDetails : Screen("playlistDetails", "Playlist", Icons.Outlined.LibraryMusic)
+    object DevicePlaylistDetails :
+        Screen("devicePlaylistDetails", "Playlist", Icons.Outlined.LibraryMusic)
     object Artists : Screen("artists", "Artists", Icons.Outlined.PersonOutline)
     object ArtistDetails : Screen("artistDetails", "Artist", Icons.Outlined.PersonOutline)
     object Songs : Screen("songs", "Songs", Icons.AutoMirrored.Outlined.QueueMusic)

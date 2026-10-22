@@ -5,6 +5,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
+import com.monoapps.monomusic.local.DevicePlaylistStore
 import com.monoapps.monomusic.local.LocalLibrary
 import com.monoapps.monomusic.offline.OfflineManager
 import com.monoapps.monomusic.tidal.LibraryCache
@@ -35,6 +36,7 @@ class MonoMusic : Application() {
     }
     val libraryCache: LibraryCache by lazy { LibraryCache(this) }
     val localLibrary: LocalLibrary by lazy { LocalLibrary(this) }
+    val devicePlaylistStore: DevicePlaylistStore by lazy { DevicePlaylistStore(this) }
 
     override fun onCreate() {
         super.onCreate()
